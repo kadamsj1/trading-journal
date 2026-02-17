@@ -63,10 +63,10 @@ export default function RegisterPage() {
             <div className="h-10 w-10 rounded-md bg-primary flex items-center justify-center">
               <BookOpen className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold">Vibe Journal</span>
+            <span className="text-2xl font-bold">Smart Journal</span>
           </div>
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
-          <CardDescription>Start your trading journey with Vibe Journal</CardDescription>
+          <CardDescription>Start your trading journey with Smart Journal</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">

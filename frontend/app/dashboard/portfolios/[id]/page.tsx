@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, TrendingUp, TrendingDown, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatINR } from '@/lib/currency';
+import { useToast } from "@/components/ui/use-toast"
 
 interface Portfolio {
   id: number;
@@ -159,7 +160,7 @@ export default function PortfolioDetailPage() {
               <CardTitle>All Trades</CardTitle>
             </CardHeader>
             <CardContent>
-              <TradesTable trades={trades} portfolioId={portfolioId} />
+              <TradesTable trades={trades} portfolioId={portfolioId} onRefresh={fetchTrades} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -170,7 +171,7 @@ export default function PortfolioDetailPage() {
               <CardTitle>Open Trades</CardTitle>
             </CardHeader>
             <CardContent>
-              <TradesTable trades={openTrades} portfolioId={portfolioId} />
+              <TradesTable trades={openTrades} portfolioId={portfolioId} onRefresh={fetchTrades} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -181,7 +182,7 @@ export default function PortfolioDetailPage() {
               <CardTitle>Closed Trades</CardTitle>
             </CardHeader>
             <CardContent>
-              <TradesTable trades={closedTrades} portfolioId={portfolioId} />
+              <TradesTable trades={closedTrades} portfolioId={portfolioId} onRefresh={fetchTrades} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -190,7 +191,29 @@ export default function PortfolioDetailPage() {
   );
 }
 
-function TradesTable({ trades, portfolioId }: { trades: Trade[]; portfolioId: number }) {
+function TradesTable({ trades, portfolioId, onRefresh }: { trades: Trade[]; portfolioId: number; onRefresh: () => void }) {
+  const { toast } = useToast();
+
+  const handleDelete = async (tradeId: number) => {
+    if (confirm('Are you sure you want to delete this trade?')) {
+      try {
+        await tradesApi.delete(tradeId);
+        toast({
+          title: "Trade deleted",
+          description: "The trade has been successfully deleted.",
+        })
+        onRefresh();
+      } catch (error) {
+        console.error('Failed to delete trade:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to delete trade. Please try again.",
+        })
+      }
+    }
+  };
+
   if (trades.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -258,21 +281,30 @@ function TradesTable({ trades, portfolioId }: { trades: Trade[]; portfolioId: nu
             </TableCell>
             <TableCell>
               <span
-                className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                  trade.status === 'open'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
+                className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${trade.status === 'open'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-700'
+                  }`}
               >
                 {trade.status}
               </span>
             </TableCell>
             <TableCell>
-              <Link href={`/dashboard/portfolios/${portfolioId}/trades/${trade.id}`}>
-                <Button variant="ghost" size="sm">
-                  <Edit className="h-4 w-4" />
+              <div className="flex space-x-2">
+                <Link href={`/dashboard/portfolios/${portfolioId}/trades/${trade.id}`}>
+                  <Button variant="ghost" size="sm">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => handleDelete(trade.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
                 </Button>
-              </Link>
+              </div>
             </TableCell>
           </TableRow>
         ))}

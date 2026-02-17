@@ -41,7 +41,7 @@ export default function LoginPage() {
             <div className="h-10 w-10 rounded-md bg-primary flex items-center justify-center">
               <BookOpen className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold">Vibe Journal</span>
+            <span className="text-2xl font-bold">Smart Journal</span>
           </div>
           <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
           <CardDescription>Enter your credentials to access your journal</CardDescription>

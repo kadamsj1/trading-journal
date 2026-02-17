@@ -35,9 +35,9 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden flex-col md:flex-row">
       <DashboardNav />
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 md:ml-64">
         {children}
       </main>
     </div>

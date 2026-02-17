@@ -8,6 +8,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     DATABASE_URL: str
 
+    # CSRF Settings
+    CSRF_TOKEN_EXPIRE_SECONDS: int = 3600
+    CSRF_COOKIE_SECURE: bool = True
+    CSRF_COOKIE_SAMESITE: str = "lax"
+
     class Config:
         env_file = ".env"
 

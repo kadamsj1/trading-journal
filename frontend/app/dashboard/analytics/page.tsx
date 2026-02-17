@@ -23,6 +23,12 @@ interface Analytics {
   average_win: number;
   average_loss: number;
   profit_factor: number;
+  patterns?: {
+    type: 'strength' | 'weakness';
+    name: string;
+    description: string;
+    confidence: string;
+  }[];
 }
 
 interface SymbolStat {
@@ -104,9 +110,9 @@ export default function AnalyticsPage() {
 
   const winLossData = analytics
     ? [
-        { name: 'Wins', value: analytics.total_wins, color: '#10b981' },
-        { name: 'Losses', value: analytics.total_losses, color: '#ef4444' },
-      ]
+      { name: 'Wins', value: analytics.total_wins, color: '#10b981' },
+      { name: 'Losses', value: analytics.total_losses, color: '#ef4444' },
+    ]
     : [];
 
   return (
@@ -236,6 +242,52 @@ export default function AnalyticsPage() {
                     }
                   </span>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-1">
+            <Card className="border-indigo-100 bg-indigo-50/50 dark:bg-indigo-950/20 dark:border-indigo-900">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-md bg-indigo-500/10 flex items-center justify-center">
+                    <span className="text-xl">🤖</span>
+                  </div>
+                  <div>
+                    <CardTitle className="text-indigo-700 dark:text-indigo-300">AI Pattern Recognition</CardTitle>
+                    <CardDescription>Automated analysis of your trading behavior</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {analytics.patterns && analytics.patterns.length > 0 ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {analytics.patterns.map((pattern, index) => (
+                      <div
+                        key={index}
+                        className={`p-4 rounded-lg border ${pattern.type === 'strength'
+                          ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
+                          : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+                          }`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className={`font-semibold ${pattern.type === 'strength' ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'
+                            }`}>
+                            {pattern.name}
+                          </h4>
+                          <span className="text-xs px-2 py-1 rounded-full bg-background border opacity-80">
+                            {pattern.confidence} Confidence
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{pattern.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    Not enough trade data to identify consistent patterns yet. Keep trading!
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>

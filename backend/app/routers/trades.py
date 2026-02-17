@@ -34,6 +34,52 @@ async def verify_portfolio_ownership(portfolio_id: int, user_id: int, db: AsyncS
         )
     return portfolio
 
+def generate_initial_tags(symbol: str, trade_type: str) -> List[str]:
+    tags = []
+    
+    # Tag by symbol type
+    upper_symbol = symbol.upper()
+    if 'NIFTY' in upper_symbol or 'SENSEX' in upper_symbol:
+        tags.append('Index')
+    elif 'FUT' in upper_symbol:
+        tags.append('Futures')
+    elif 'CE' in upper_symbol or 'PE' in upper_symbol:
+        tags.append('Options')
+    else:
+        tags.append('Equity')
+
+    # Tag by trade type
+    tags.append(trade_type.capitalize())
+    
+    return tags
+
+def generate_closing_tags(entry_date: datetime, exit_date: datetime, profit_loss: float, profit_loss_percentage: float) -> List[str]:
+    tags = []
+    
+    # Tag by result
+    if profit_loss > 0:
+        tags.append('Win')
+        if profit_loss_percentage >= 5.0:
+            tags.append('Big Win')
+    elif profit_loss < 0:
+        tags.append('Loss')
+        if profit_loss_percentage <= -5.0:
+            tags.append('Big Loss')
+    else:
+        tags.append('Break Even')
+
+    # Tag by duration
+    duration = exit_date - entry_date
+    minutes = duration.total_seconds() / 60
+    
+    if minutes < 15:
+        tags.append('Scalp')
+    elif entry_date.date() == exit_date.date():
+        tags.append('Intraday')
+    else:
+        tags.append('Swing')
+        
+    return tags
 
 @router.get("/portfolio/{portfolio_id}", response_model=List[Trade])
 async def get_portfolio_trades(
@@ -54,8 +100,21 @@ async def create_trade(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Create a new trade"""
+    """Create a new trade with auto-tagging"""
     await verify_portfolio_ownership(trade.portfolio_id, current_user.id, db)
+    
+    # Generate initial tags
+    auto_tags = generate_initial_tags(trade.symbol, trade.trade_type)
+    
+    # Merge with user provided tags
+    current_tags = []
+    if trade.tags:
+        current_tags = [t.strip() for t in trade.tags.split(',') if t.strip()]
+    
+    # Combine unique tags
+    all_tags = list(set(current_tags + auto_tags))
+    trade.tags = ",".join(all_tags)
+    
     return await trade_crud.create_trade(db, trade=trade)
 
 
@@ -107,7 +166,7 @@ async def close_trade(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Close a trade and calculate P&L"""
+    """Close a trade, calculate P&L, and auto-tag"""
     trade = await trade_crud.get_trade_by_id(db, trade_id=trade_id)
     if not trade:
         raise HTTPException(
@@ -124,8 +183,30 @@ async def close_trade(
             detail="Trade is already closed"
         )
 
+    # Close the trade first to get P&L calculations
     closed_trade = await trade_crud.close_trade(db, trade_id=trade_id, trade_close=trade_close)
-    return closed_trade
+    
+    # Generate closing tags
+    closing_tags = generate_closing_tags(
+        closed_trade.entry_date, 
+        closed_trade.exit_date, 
+        closed_trade.profit_loss, 
+        closed_trade.profit_loss_percentage
+    )
+    
+    # Merge with existing tags
+    current_tags = []
+    if closed_trade.tags:
+        current_tags = [t.strip() for t in closed_trade.tags.split(',') if t.strip()]
+        
+    all_tags = list(set(current_tags + closing_tags))
+    new_tags_str = ",".join(all_tags)
+    
+    # Update trade with new tags
+    trade_update = TradeUpdate(tags=new_tags_str)
+    final_trade = await trade_crud.update_trade(db, trade_id=trade_id, trade_update=trade_update)
+    
+    return final_trade
 
 
 @router.post("/{trade_id}/screenshot")

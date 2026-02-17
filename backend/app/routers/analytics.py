@@ -1,19 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from typing import Dict, Any
+from sqlalchemy import select, and_
+from typing import Dict, Any, List
 from app.database import get_db
-from app.models import Trade, Portfolio
+from app.models import Trade, Portfolio, User
 from app.models.trade import TradeStatus
 from app.crud import portfolio as portfolio_crud
 from app.auth.dependencies import get_current_active_user
-from app.models import User
+import numpy as np
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
-
 async def verify_portfolio_ownership(portfolio_id: int, user_id: int, db: AsyncSession):
-    """Helper function to verify user owns the portfolio"""
     portfolio = await portfolio_crud.get_portfolio_by_id(db, portfolio_id=portfolio_id)
     if not portfolio:
         raise HTTPException(
@@ -27,17 +25,15 @@ async def verify_portfolio_ownership(portfolio_id: int, user_id: int, db: AsyncS
         )
     return portfolio
 
-
 @router.get("/portfolio/{portfolio_id}", response_model=Dict[str, Any])
 async def get_portfolio_analytics(
     portfolio_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Get comprehensive analytics for a portfolio"""
     portfolio = await verify_portfolio_ownership(portfolio_id, current_user.id, db)
 
-    # Get all closed trades for calculations
+    # Get all closed trades
     result = await db.execute(
         select(Trade).where(
             and_(
@@ -50,6 +46,7 @@ async def get_portfolio_analytics(
 
     # Calculate statistics
     total_trades = len(closed_trades)
+    
     if total_trades == 0:
         return {
             "portfolio_id": portfolio_id,
@@ -65,6 +62,7 @@ async def get_portfolio_analytics(
             "average_win": 0.0,
             "average_loss": 0.0,
             "profit_factor": 0.0,
+            "patterns": []
         }
 
     total_pl = sum(t.profit_loss or 0 for t in closed_trades)
@@ -79,14 +77,15 @@ async def get_portfolio_analytics(
     avg_win = sum(t.profit_loss for t in winning_trades) / total_wins if total_wins > 0 else 0
     avg_loss = sum(t.profit_loss for t in losing_trades) / total_losses if total_losses > 0 else 0
 
-    # Profit factor: total wins / abs(total losses)
     total_win_amount = sum(t.profit_loss for t in winning_trades)
     total_loss_amount = abs(sum(t.profit_loss for t in losing_trades))
     profit_factor = total_win_amount / total_loss_amount if total_loss_amount > 0 else 0
 
-    # Best and worst trades
     best_trade = max(closed_trades, key=lambda t: t.profit_loss or 0)
     worst_trade = min(closed_trades, key=lambda t: t.profit_loss or 0)
+
+    # Simple AI Pattern Recognition
+    patterns = analyze_patterns(closed_trades)
 
     return {
         "portfolio_id": portfolio_id,
@@ -110,8 +109,46 @@ async def get_portfolio_analytics(
         "average_win": round(avg_win, 2),
         "average_loss": round(avg_loss, 2),
         "profit_factor": round(profit_factor, 2),
+        "patterns": patterns
     }
 
+def analyze_patterns(trades: List[Trade]) -> List[Dict[str, Any]]:
+    # Simple logic to identify winning/losing patterns
+    # In a real AI scenario, this would use ML models
+    patterns = []
+    
+    long_trades = [t for t in trades if t.trade_type == 'long']
+    short_trades = [t for t in trades if t.trade_type == 'short']
+
+    # Analyze Direction
+    if long_trades:
+        long_win_rate = len([t for t in long_trades if (t.profit_loss or 0) > 0]) / len(long_trades)
+        if long_win_rate > 0.6:
+            patterns.append({
+                "type": "strength",
+                "name": "Bullish Trend Master",
+                "description": f"You have a high win rate ({long_win_rate:.0%}) with long positions.",
+                "confidence": "High"
+            })
+        elif long_win_rate < 0.4:
+            patterns.append({
+                "type": "weakness",
+                "name": "Bullish Struggle",
+                "description": f"Your long positions are underperforming (win rate: {long_win_rate:.0%}). Consider reviewing your entry criteria.",
+                "confidence": "Medium"
+            })
+
+    if short_trades:
+        short_win_rate = len([t for t in short_trades if (t.profit_loss or 0) > 0]) / len(short_trades)
+        if short_win_rate > 0.6:
+            patterns.append({
+                "type": "strength",
+                "name": "Bear Market Pro",
+                "description": f"Excellent performance on short trades with a {short_win_rate:.0%} win rate.",
+                "confidence": "High"
+            })
+    
+    return patterns
 
 @router.get("/portfolio/{portfolio_id}/by-symbol", response_model=Dict[str, Any])
 async def get_analytics_by_symbol(

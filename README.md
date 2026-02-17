@@ -1,4 +1,4 @@
-# Vibe Journal
+# Smart Journal
 
 A beautifully designed trading journal for Indian stock market traders. Track your NSE/BSE trades, analyze performance, and build consistent trading habits. Built with Next.js, shadcn/ui, FastAPI, and SQLite.
 

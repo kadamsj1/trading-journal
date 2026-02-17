@@ -2,16 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, FolderKanban, LineChart, Users, LogOut, BookOpen } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, LineChart, Users, LogOut, BookOpen, Menu } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuthStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from './theme-toggle';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useState } from 'react';
 
 export function DashboardNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const [open, setOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -44,14 +47,14 @@ export function DashboardNav() {
     });
   }
 
-  return (
-    <div className="flex h-screen w-64 flex-col border-r bg-card">
+  const NavContent = () => (
+    <>
       <div className="flex h-16 items-center justify-between border-b px-6">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center">
             <BookOpen className="h-5 w-5 text-primary-foreground" />
           </div>
-          <h1 className="text-xl font-bold">Vibe Journal</h1>
+          <h1 className="text-xl font-bold">Smart Journal</h1>
         </div>
         <ThemeToggle />
       </div>
@@ -64,6 +67,7 @@ export function DashboardNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setOpen(false)}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                   pathname === item.href
@@ -94,6 +98,37 @@ export function DashboardNav() {
           Logout
         </Button>
       </div>
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Navigation */}
+      <div className="hidden border-r bg-card md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
+        <NavContent />
+      </div>
+
+      {/* Mobile Navigation */}
+      <div className="md:hidden flex items-center justify-between p-4 border-b bg-card">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center">
+            <BookOpen className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <h1 className="text-xl font-bold">Smart Journal</h1>
+        </div>
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-64">
+            <div className="flex h-full flex-col bg-card">
+              <NavContent />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </>
   );
 }

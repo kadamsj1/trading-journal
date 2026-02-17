@@ -16,7 +16,7 @@ export default function Home() {
             <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold">Vibe Journal</span>
+            <span className="text-xl font-bold">Smart Journal</span>
           </div>
           <div className="flex items-center space-x-2">
             <ThemeToggle />
@@ -196,7 +196,7 @@ export default function Home() {
             Ready to improve your trading?
           </h2>
           <p className="text-xl text-muted-foreground">
-            Join traders who are building consistent, profitable habits with Vibe Journal
+            Join traders who are building consistent, profitable habits with Smart Journal
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link href="/register">
@@ -221,10 +221,10 @@ export default function Home() {
               <div className="h-6 w-6 rounded-md bg-primary flex items-center justify-center">
                 <BookOpen className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-semibold">Vibe Journal</span>
+              <span className="font-semibold">Smart Journal</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2025 Vibe Journal. Built for Indian traders.
+              © 2025 Smart Journal. Built for Indian traders.
             </p>
           </div>
         </div>

@@ -8,7 +8,7 @@ from typing import Optional
 # CSRF configuration from environment variables
 CSRF_SECRET = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
 CSRF_TOKEN_EXPIRE_SECONDS = int(os.getenv("CSRF_TOKEN_EXPIRE_SECONDS", "3600"))
-CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "true").lower() == "true"
+CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "false").lower() == "true"
 CSRF_COOKIE_SAMESITE = os.getenv("CSRF_COOKIE_SAMESITE", "lax")
 
 CSRF_TOKEN_NAME = "csrf_token"
@@ -117,7 +117,13 @@ class CSRFProtectMiddleware(BaseHTTPMiddleware):
 
         # Refresh CSRF token in cookie for all successful requests
         if response.status_code < 400:
-            csrf_token = generate_csrf_token()
+            # Reuse existing token if it exists and is valid to prevent race conditions
+            csrf_cookie_token = request.cookies.get(CSRF_COOKIE_NAME)
+            if csrf_cookie_token and validate_csrf_token(csrf_cookie_token):
+                csrf_token = csrf_cookie_token
+            else:
+                csrf_token = generate_csrf_token()
+                
             response.set_cookie(
                 key=CSRF_COOKIE_NAME,
                 value=csrf_token,

@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Trade Journal API",
+    title="Smart Journal API",
     description="API for managing trading portfolios and journals",
     version="1.0.0",
     lifespan=lifespan
@@ -50,7 +50,7 @@ app.include_router(analytics.router, prefix="/api")
 @app.get("/")
 async def root():
     return {
-        "message": "Trade Journal API",
+        "message": "Smart Journal API",
         "version": "1.0.0",
         "docs": "/docs"
     }
