@@ -26,7 +26,14 @@ export default function LoginPage() {
       await login(username, password);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (Array.isArray(detail)) {
+        setError(detail.map((e: any) => e.msg).join(', '));
+      } else {
+        setError('Login failed. Please check your credentials.');
+      }
     }
   };
 

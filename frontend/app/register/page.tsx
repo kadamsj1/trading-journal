@@ -48,7 +48,14 @@ export default function RegisterPage() {
       });
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (Array.isArray(detail)) {
+        setError(detail.map((e: any) => e.msg).join(', '));
+      } else {
+        setError('Registration failed. Please try again.');
+      }
     }
   };
 
