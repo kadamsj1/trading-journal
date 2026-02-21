@@ -84,6 +84,15 @@ async def get_portfolio_analytics(
     best_trade = max(closed_trades, key=lambda t: t.profit_loss or 0)
     worst_trade = min(closed_trades, key=lambda t: t.profit_loss or 0)
 
+    # Detailed statistics
+    max_profit = max(t.profit_loss for t in winning_trades) if winning_trades else 0.0
+    min_profit = min(t.profit_loss for t in winning_trades) if winning_trades else 0.0
+    
+    # Negative trades only for loss stats
+    only_losses = [t for t in losing_trades if (t.profit_loss or 0) < 0]
+    max_loss = min(t.profit_loss for t in only_losses) if only_losses else 0.0
+    min_loss = max(t.profit_loss for t in only_losses) if only_losses else 0.0
+
     # Simple AI Pattern Recognition
     patterns = analyze_patterns(closed_trades)
 
@@ -109,8 +118,13 @@ async def get_portfolio_analytics(
         "average_win": round(avg_win, 2),
         "average_loss": round(avg_loss, 2),
         "profit_factor": round(profit_factor, 2),
+        "max_profit": round(max_profit, 2),
+        "min_profit": round(min_profit, 2),
+        "max_loss": round(max_loss, 2),
+        "min_loss": round(min_loss, 2),
         "patterns": patterns
     }
+
 
 def analyze_patterns(trades: List[Trade]) -> List[Dict[str, Any]]:
     # Simple logic to identify winning/losing patterns
@@ -170,31 +184,93 @@ async def get_analytics_by_symbol(
     )
     closed_trades = list(result.scalars().all())
 
-    # Group by symbol
+    # Group by base symbol (e.g., "NIFTY 25900 CE" becomes "NIFTY")
     symbol_stats = {}
     for trade in closed_trades:
-        symbol = trade.symbol
-        if symbol not in symbol_stats:
-            symbol_stats[symbol] = {
-                "symbol": symbol,
+        # Extract base symbol: Take the first word (professional for Indian markets)
+        original_symbol = trade.symbol.strip()
+        base_symbol = original_symbol.split()[0].upper()
+        
+        if base_symbol not in symbol_stats:
+            symbol_stats[base_symbol] = {
+                "symbol": base_symbol,
+                "display_symbol": base_symbol,
                 "total_trades": 0,
                 "total_profit_loss": 0.0,
                 "wins": 0,
                 "losses": 0,
+                "sub_symbols": set()
             }
 
-        symbol_stats[symbol]["total_trades"] += 1
-        symbol_stats[symbol]["total_profit_loss"] += trade.profit_loss or 0
+        symbol_stats[base_symbol]["total_trades"] += 1
+        symbol_stats[base_symbol]["total_profit_loss"] += trade.profit_loss or 0
+        symbol_stats[base_symbol]["sub_symbols"].add(original_symbol)
+        
         if (trade.profit_loss or 0) > 0:
-            symbol_stats[symbol]["wins"] += 1
+            symbol_stats[base_symbol]["wins"] += 1
         else:
-            symbol_stats[symbol]["losses"] += 1
+            symbol_stats[base_symbol]["losses"] += 1
 
-    # Calculate win rates
-    for symbol in symbol_stats:
-        total = symbol_stats[symbol]["total_trades"]
-        wins = symbol_stats[symbol]["wins"]
-        symbol_stats[symbol]["win_rate"] = round((wins / total) * 100, 2) if total > 0 else 0
-        symbol_stats[symbol]["total_profit_loss"] = round(symbol_stats[symbol]["total_profit_loss"], 2)
+    # Calculate win rates and format output
+    final_stats = []
+    for base in symbol_stats:
+        total = symbol_stats[base]["total_trades"]
+        wins = symbol_stats[base]["wins"]
+        
+        stat = {
+            "symbol": base,
+            "total_trades": total,
+            "total_profit_loss": round(symbol_stats[base]["total_profit_loss"], 2),
+            "wins": wins,
+            "losses": symbol_stats[base]["losses"],
+            "win_rate": round((wins / total) * 100, 2) if total > 0 else 0,
+            "details": ", ".join(list(symbol_stats[base]["sub_symbols"])[:3]) + ("..." if len(symbol_stats[base]["sub_symbols"]) > 3 else "")
+        }
+        final_stats.append(stat)
 
-    return {"symbols": list(symbol_stats.values())}
+    return {"symbols": final_stats}
+
+@router.get("/portfolio/{portfolio_id}/daily-pl", response_model=Dict[str, Any])
+async def get_daily_pl(
+    portfolio_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get daily P&L for a portfolio"""
+    await verify_portfolio_ownership(portfolio_id, current_user.id, db)
+
+    # Get all closed trades
+    result = await db.execute(
+        select(Trade).where(
+            and_(
+                Trade.portfolio_id == portfolio_id,
+                Trade.status == TradeStatus.CLOSED
+            )
+        )
+    )
+    closed_trades = list(result.scalars().all())
+
+    # Group by date
+    daily_stats = {}
+    for trade in closed_trades:
+        # Assuming exit_date is the date when P&L is realized
+        if not trade.exit_date:
+            continue
+            
+        date_str = trade.exit_date.strftime("%Y-%m-%d")
+        if date_str not in daily_stats:
+            daily_stats[date_str] = {
+                "date": date_str,
+                "profit_loss": 0.0,
+                "trade_count": 0
+            }
+        
+        daily_stats[date_str]["profit_loss"] += trade.profit_loss or 0
+        daily_stats[date_str]["trade_count"] += 1
+
+    # Round P&L
+    for date in daily_stats:
+        daily_stats[date]["profit_loss"] = round(daily_stats[date]["profit_loss"], 2)
+
+    return {"daily_pl": list(daily_stats.values())}
+

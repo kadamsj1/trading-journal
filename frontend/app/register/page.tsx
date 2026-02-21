@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useAuthStore } from '@/lib/store';
-import { BookOpen } from 'lucide-react';
+import { Zap, ArrowLeft, UserPlus, ShieldPlus, KeyRound, Mail, User as UserIcon } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function RegisterPage() {
@@ -35,7 +35,7 @@ export default function RegisterPage() {
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError('Key Mismatch: Access Keys do not match.');
       return;
     }
 
@@ -54,114 +54,168 @@ export default function RegisterPage() {
       } else if (Array.isArray(detail)) {
         setError(detail.map((e: any) => e.msg).join(', '));
       } else {
-        setError('Registration failed. Please try again.');
+        setError('Initialization Failure: Registry Error.');
       }
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="absolute top-4 right-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-6 selection:bg-primary selection:text-white relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-0 left-0 h-96 w-96 bg-primary/10 blur-[120px] rounded-full -ml-48 -mt-48" />
+      <div className="absolute bottom-0 right-0 h-96 w-96 bg-blue-600/10 blur-[120px] rounded-full -mr-48 -mb-48 opacity-50" />
+
+      <div className="absolute top-8 left-8 hidden md:block">
+        <Link href="/">
+          <Button variant="ghost" className="font-bold gap-2 text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" /> System Exit
+          </Button>
+        </Link>
+      </div>
+
+      <div className="absolute top-8 right-8">
         <ThemeToggle />
       </div>
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-10 w-10 rounded-md bg-primary flex items-center justify-center">
-              <BookOpen className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold">Smart Journal</span>
+
+      <div className="w-full max-w-2xl relative z-10 py-12">
+        <div className="text-center space-y-2 mb-10">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-2xl shadow-primary/40 mb-4 animate-in zoom-in duration-500">
+            <UserPlus className="h-8 w-8 text-white" />
           </div>
-          <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
-          <CardDescription>Start your trading journey with Smart Journal</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            {error && (
-              <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
-                {error}
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase italic leading-none">Register <span className="text-primary italic">Terminal</span></h1>
+          <p className="text-sm font-bold text-muted-foreground uppercase tracking-[0.3em] opacity-60">Initialize New Operator</p>
+        </div>
+
+        <Card className="border-none shadow-2xl rounded-[3rem] bg-card/50 backdrop-blur-xl overflow-hidden hover:shadow-primary/5 transition-all">
+          <CardContent className="p-8 md:p-14">
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {error && (
+                <div className="p-4 rounded-2xl bg-red-500/5 border-2 border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest animate-pulse">
+                  System Error: {error}
+                </div>
+              )}
+
+              <div className="grid gap-8 md:grid-cols-2">
+                {/* Identity Section */}
+                <div className="space-y-6">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                    <ShieldPlus className="h-3 w-3" /> Identity Matrix
+                  </p>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60 pl-2">Email Address</Label>
+                      <div className="relative group">
+                        <Mail className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          placeholder="operator@system.io"
+                          value={formData.email}
+                          onChange={handleChange}
+                          className="h-14 rounded-2xl border-2 bg-muted/20 border-transparent focus:border-primary/20 focus:bg-background transition-all font-bold pl-14 pr-6"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="username" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60 pl-2">Username</Label>
+                      <div className="relative group">
+                        <UserIcon className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        <Input
+                          id="username"
+                          name="username"
+                          type="text"
+                          placeholder="Choose Unique ID"
+                          value={formData.username}
+                          onChange={handleChange}
+                          className="h-14 rounded-2xl border-2 bg-muted/20 border-transparent focus:border-primary/20 focus:bg-background transition-all font-bold pl-14 pr-6"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="full_name" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60 pl-2">Legal Handle</Label>
+                      <Input
+                        id="full_name"
+                        name="full_name"
+                        type="text"
+                        placeholder="Full Name (Optional)"
+                        value={formData.full_name}
+                        onChange={handleChange}
+                        className="h-14 rounded-2xl border-2 bg-muted/20 border-transparent focus:border-primary/20 focus:bg-background transition-all font-bold px-6"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Security Section */}
+                <div className="space-y-6">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                    <KeyRound className="h-3 w-3" /> Security Protocol
+                  </p>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60 pl-2">Access Key</Label>
+                      <Input
+                        id="password"
+                        name="password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={formData.password}
+                        onChange={handleChange}
+                        className="h-14 rounded-2xl border-2 bg-muted/20 border-transparent focus:border-primary/20 focus:bg-background transition-all font-bold px-6"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60 pl-2">Verify Key</Label>
+                      <Input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type="password"
+                        placeholder="••••••••"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        className="h-14 rounded-2xl border-2 bg-muted/20 border-transparent focus:border-primary/20 focus:bg-background transition-all font-bold px-6"
+                        required
+                      />
+                    </div>
+
+                    <div className="pt-4 p-6 bg-primary/5 rounded-[2rem] border border-primary/10">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-primary leading-tight">
+                        Security Notice: Credentials are hashed with industry-standard protocols before storage.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="your.email@example.com"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                name="username"
-                type="text"
-                placeholder="Choose a username"
-                value={formData.username}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Full Name (Optional)</Label>
-              <Input
-                id="full_name"
-                name="full_name"
-                type="text"
-                placeholder="Your full name"
-                value={formData.full_name}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Create a password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                placeholder="Confirm your password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-              />
-            </div>
+
+              <Button
+                type="submit"
+                className="w-full h-16 rounded-2xl font-black text-xl bg-primary shadow-2xl shadow-primary/30 hover:scale-[1.02] transition-transform mt-6"
+                disabled={isLoading}
+              >
+                {isLoading ? 'EXECUTING REGISTRY...' : 'LAUNCH TERMINAL v2.0'}
+              </Button>
+            </form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Creating account...' : 'Create Account'}
-            </Button>
-            <div className="space-y-2 text-center">
-              <p className="text-sm text-muted-foreground">
-                Already have an account?{' '}
-                <Link href="/login" className="text-primary hover:underline">
-                  Login here
-                </Link>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                <Link href="/" className="text-primary hover:underline">
-                  ← Back to home
-                </Link>
-              </p>
-            </div>
-          </CardFooter>
-        </form>
-      </Card>
+        </Card>
+
+        <div className="text-center mt-12 space-y-6">
+          <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest opacity-60">
+            Already an Operator? {' '}
+            <Link href="/login" className="text-primary hover:text-primary/80 underline decoration-2 underline-offset-4">
+              Access Terminal
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

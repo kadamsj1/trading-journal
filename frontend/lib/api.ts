@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -140,6 +140,17 @@ export const tradesApi = {
 export const analyticsApi = {
   getPortfolioAnalytics: (portfolioId: number) => api.get(`/analytics/portfolio/${portfolioId}`),
   getBySymbol: (portfolioId: number) => api.get(`/analytics/portfolio/${portfolioId}/by-symbol`),
+  getDailyPL: (portfolioId: number) => api.get(`/analytics/portfolio/${portfolioId}/daily-pl`),
+};
+
+// Alerts API
+export const alertsApi = {
+  getAll: (activeOnly = false) => api.get(`/alerts?active_only=${activeOnly}`),
+  create: (data: { symbol: string; price: number; condition: string; message?: string }) =>
+    api.post('/alerts', data),
+  getById: (id: number) => api.get(`/alerts/${id}`),
+  update: (id: number, data: any) => api.patch(`/alerts/${id}`, data),
+  delete: (id: number) => api.delete(`/alerts/${id}`),
 };
 
 export default api;

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.database import init_db
-from app.routers import auth, users, portfolios, trades, analytics
+from app.routers import auth, users, portfolios, trades, analytics, alerts
 from app.middleware.csrf import CSRFProtectMiddleware
 
 
@@ -27,6 +27,10 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:3002",
+        "http://127.0.0.1:3002",
         "https://vibe.marketcalls.in",
         "http://vibe.marketcalls.in"
     ],
@@ -45,6 +49,7 @@ app.include_router(users.router, prefix="/api")
 app.include_router(portfolios.router, prefix="/api")
 app.include_router(trades.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
+app.include_router(alerts.router, prefix="/api")
 
 
 @app.get("/")
