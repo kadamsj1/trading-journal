@@ -25,6 +25,7 @@ CSRF_EXEMPT_PATHS = {
     "/docs",
     "/openapi.json",
     "/health",
+    "/api/health",  # Railway healthcheck
     "/"
 }
 
