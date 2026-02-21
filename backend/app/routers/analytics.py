@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from typing import Dict, Any, List
 from app.database import get_db
-from app.models import Trade, Portfolio, User
+from app.models import Trade, Portfolio, User, DailyCharge
 from app.models.trade import TradeStatus
 from app.crud import portfolio as portfolio_crud
 from app.auth.dependencies import get_current_active_user
@@ -199,17 +199,22 @@ async def get_analytics_by_symbol(
                 "total_profit_loss": 0.0,
                 "wins": 0,
                 "losses": 0,
+                "win_amount": 0.0,   # sum of profitable trade P&L
+                "loss_amount": 0.0,  # sum of losing trade P&L (absolute)
                 "sub_symbols": set()
             }
 
         symbol_stats[base_symbol]["total_trades"] += 1
         symbol_stats[base_symbol]["total_profit_loss"] += trade.profit_loss or 0
         symbol_stats[base_symbol]["sub_symbols"].add(original_symbol)
-        
-        if (trade.profit_loss or 0) > 0:
+
+        pl = trade.profit_loss or 0
+        if pl > 0:
             symbol_stats[base_symbol]["wins"] += 1
+            symbol_stats[base_symbol]["win_amount"] += pl
         else:
             symbol_stats[base_symbol]["losses"] += 1
+            symbol_stats[base_symbol]["loss_amount"] += abs(pl)
 
     # Calculate win rates and format output
     final_stats = []
@@ -224,6 +229,8 @@ async def get_analytics_by_symbol(
             "wins": wins,
             "losses": symbol_stats[base]["losses"],
             "win_rate": round((wins / total) * 100, 2) if total > 0 else 0,
+            "win_amount":  round(symbol_stats[base]["win_amount"],  2),
+            "loss_amount": round(symbol_stats[base]["loss_amount"], 2),
             "details": ", ".join(list(symbol_stats[base]["sub_symbols"])[:3]) + ("..." if len(symbol_stats[base]["sub_symbols"]) > 3 else "")
         }
         final_stats.append(stat)
@@ -250,21 +257,30 @@ async def get_daily_pl(
     )
     closed_trades = list(result.scalars().all())
 
-    # Group by date
+    import datetime as dt
+
+    IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
+
+    # Group by IST date
     daily_stats = {}
     for trade in closed_trades:
-        # Assuming exit_date is the date when P&L is realized
         if not trade.exit_date:
             continue
-            
-        date_str = trade.exit_date.strftime("%Y-%m-%d")
+
+        # exit_date may be timezone-aware (UTC) or naive (treated as UTC)
+        exit_utc = trade.exit_date
+        if exit_utc.tzinfo is None:
+            exit_utc = exit_utc.replace(tzinfo=dt.timezone.utc)
+        exit_ist  = exit_utc.astimezone(IST)
+        date_str  = exit_ist.strftime("%Y-%m-%d")
+
         if date_str not in daily_stats:
             daily_stats[date_str] = {
                 "date": date_str,
                 "profit_loss": 0.0,
                 "trade_count": 0
             }
-        
+
         daily_stats[date_str]["profit_loss"] += trade.profit_loss or 0
         daily_stats[date_str]["trade_count"] += 1
 
@@ -274,3 +290,115 @@ async def get_daily_pl(
 
     return {"daily_pl": list(daily_stats.values())}
 
+
+
+@router.get("/portfolio/{portfolio_id}/weekly-performance", response_model=Dict[str, Any])
+async def get_weekly_performance(
+    portfolio_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get weekly aggregated P&L performance (trades + daily charges) for a portfolio"""
+    await verify_portfolio_ownership(portfolio_id, current_user.id, db)
+
+    # ── fetch closed trades ──────────────────────────
+    trade_res = await db.execute(
+        select(Trade).where(
+            and_(
+                Trade.portfolio_id == portfolio_id,
+                Trade.status == TradeStatus.CLOSED
+            )
+        )
+    )
+    closed_trades = list(trade_res.scalars().all())
+
+    # ── fetch daily charges ──────────────────────────
+    charge_res = await db.execute(
+        select(DailyCharge).where(DailyCharge.portfolio_id == portfolio_id)
+    )
+    daily_charges = list(charge_res.scalars().all())
+
+    import datetime as dt
+    IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
+
+    weekly_stats: Dict[str, Any] = {}
+
+    def ensure_week(year: int, week: int):
+        week_key = f"{year}-W{week:02d}"
+        if week_key not in weekly_stats:
+            week_start = dt.date.fromisocalendar(year, week, 1)
+            week_end   = dt.date.fromisocalendar(year, week, 5)
+            label = f"{week_start.strftime('%d %b')} \u2013 {week_end.strftime('%d %b')}"
+            weekly_stats[week_key] = {
+                "week": week_key,
+                "label": label,
+                "profit_loss": 0.0,
+                "total_profit": 0.0,   # sum of winning trade P&L
+                "total_loss": 0.0,     # sum of losing trade P&L (absolute)
+                "charges": 0.0,
+                "trade_count": 0,
+                "wins": 0,
+                "losses": 0,
+                "best_trade": None,
+                "worst_trade": None,
+            }
+        return week_key
+
+    # aggregate trades
+    for trade in closed_trades:
+        if not trade.exit_date:
+            continue
+        exit_utc = trade.exit_date
+        if exit_utc.tzinfo is None:
+            exit_utc = exit_utc.replace(tzinfo=dt.timezone.utc)
+        exit_ist = exit_utc.astimezone(IST).date()
+        year = exit_ist.isocalendar()[0]
+        week = exit_ist.isocalendar()[1]
+        wk = ensure_week(year, week)
+
+        pl = trade.profit_loss or 0.0
+        weekly_stats[wk]["profit_loss"] += pl
+        weekly_stats[wk]["trade_count"] += 1
+
+        if pl > 0:
+            weekly_stats[wk]["wins"] += 1
+            weekly_stats[wk]["total_profit"] += pl
+        else:
+            weekly_stats[wk]["losses"] += 1
+            weekly_stats[wk]["total_loss"] += abs(pl)
+
+        cur_best = weekly_stats[wk]["best_trade"]
+        if cur_best is None or pl > cur_best:
+            weekly_stats[wk]["best_trade"] = pl
+
+        cur_worst = weekly_stats[wk]["worst_trade"]
+        if cur_worst is None or pl < cur_worst:
+            weekly_stats[wk]["worst_trade"] = pl
+
+    # aggregate daily charges by ISO week
+    for dc in daily_charges:
+        d = dc.date
+        year = d.isocalendar()[0]
+        week = d.isocalendar()[1]
+        wk = ensure_week(year, week)
+        weekly_stats[wk]["charges"] += dc.amount or 0.0
+
+    # final cleanup
+    result_list = []
+    for wk in sorted(weekly_stats.keys()):
+        data = weekly_stats[wk]
+        total   = data["trade_count"]
+        wins    = data["wins"]
+        gross   = data["profit_loss"]
+        charges = data["charges"]
+        data["profit_loss"]     = round(gross, 2)
+        data["total_profit"]    = round(data["total_profit"], 2)
+        data["total_loss"]      = round(data["total_loss"], 2)
+        data["charges"]         = round(charges, 2)
+        data["net_profit_loss"] = round(gross - charges, 2)
+        data["win_rate"]        = round((wins / total) * 100, 2) if total > 0 else 0
+        data["best_trade"]      = round(data["best_trade"],  2) if data["best_trade"]  is not None else 0
+        data["worst_trade"]     = round(data["worst_trade"], 2) if data["worst_trade"] is not None else 0
+        result_list.append(data)
+
+    return {"weekly": result_list}

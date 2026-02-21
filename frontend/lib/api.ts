@@ -141,6 +141,17 @@ export const analyticsApi = {
   getPortfolioAnalytics: (portfolioId: number) => api.get(`/analytics/portfolio/${portfolioId}`),
   getBySymbol: (portfolioId: number) => api.get(`/analytics/portfolio/${portfolioId}/by-symbol`),
   getDailyPL: (portfolioId: number) => api.get(`/analytics/portfolio/${portfolioId}/daily-pl`),
+  getWeeklyPerformance: (portfolioId: number) => api.get(`/analytics/portfolio/${portfolioId}/weekly-performance`),
+};
+
+// Daily Charges API
+export const chargesApi = {
+  getByPortfolio: (portfolioId: number) => api.get(`/charges/portfolio/${portfolioId}`),
+  create: (data: { portfolio_id: number; date: string; amount: number; notes?: string }) =>
+    api.post('/charges', data),
+  update: (id: number, data: { date?: string; amount?: number; notes?: string }) =>
+    api.patch(`/charges/${id}`, data),
+  delete: (id: number) => api.delete(`/charges/${id}`),
 };
 
 // Alerts API

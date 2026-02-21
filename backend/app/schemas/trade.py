@@ -12,6 +12,7 @@ class TradeBase(BaseModel):
     quantity: float
     notes: Optional[str] = None
     tags: Optional[str] = None
+    charges: Optional[float] = 0.0  # Brokerage + taxes + other charges
 
 
 class TradeCreate(TradeBase):
@@ -29,6 +30,7 @@ class TradeUpdate(BaseModel):
     status: Optional[TradeStatus] = None
     notes: Optional[str] = None
     tags: Optional[str] = None
+    charges: Optional[float] = None
 
 
 class TradeClose(BaseModel):
@@ -44,6 +46,7 @@ class Trade(TradeBase):
     exit_date: Optional[datetime] = None
     profit_loss: Optional[float] = None
     profit_loss_percentage: Optional[float] = None
+    charges: Optional[float] = 0.0
     screenshot_path: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None

@@ -38,6 +38,7 @@ class Trade(Base):
     # P&L
     profit_loss = Column(Float, nullable=True)
     profit_loss_percentage = Column(Float, nullable=True)
+    charges = Column(Float, nullable=True, default=0.0)  # Brokerage + taxes + other charges
 
     # Additional info
     notes = Column(Text, nullable=True)

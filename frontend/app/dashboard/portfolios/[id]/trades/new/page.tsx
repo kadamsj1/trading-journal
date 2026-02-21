@@ -15,7 +15,8 @@ import {
   Tag,
   FileText,
   BadgeDollarSign,
-  TrendingUp
+  TrendingUp,
+  Receipt
 } from 'lucide-react';
 
 export default function NewTradePage() {
@@ -31,6 +32,7 @@ export default function NewTradePage() {
     quantity: '',
     notes: '',
     tags: '',
+    charges: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,6 +59,7 @@ export default function NewTradePage() {
         quantity: parseFloat(formData.quantity),
         notes: formData.notes || undefined,
         tags: formData.tags || undefined,
+        charges: formData.charges ? parseFloat(formData.charges) : 0,
       });
       router.push(`/dashboard/portfolios/${portfolioId}`);
     } catch (err: any) {
@@ -217,6 +220,35 @@ export default function NewTradePage() {
                     value={formData.tags}
                     onChange={handleChange}
                     className="rounded-xl border-2 bg-muted/20 focus:bg-background transition-all text-xs font-bold"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-xl rounded-[2rem] bg-card overflow-hidden">
+            <CardHeader className="bg-orange-500/5 pb-4 border-b border-orange-500/10">
+              <CardTitle className="text-lg font-black flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-orange-500" />
+                Charges
+              </CardTitle>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Brokerage, STT, GST, Taxes</p>
+            </CardHeader>
+            <CardContent className="pt-4 px-6 pb-6">
+              <div className="space-y-2">
+                <Label htmlFor="charges" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Charges (₹)</Label>
+                <div className="relative">
+                  <BadgeDollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-orange-500 opacity-60" />
+                  <Input
+                    id="charges"
+                    name="charges"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.charges}
+                    onChange={handleChange}
+                    className="h-12 pl-10 rounded-xl border-2 border-orange-500/20 bg-orange-500/5 focus:bg-background transition-all font-black text-sm"
                   />
                 </div>
               </div>

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.database import init_db
-from app.routers import auth, users, portfolios, trades, analytics, alerts
+from app.routers import auth, users, portfolios, trades, analytics, alerts, charges
 from app.middleware.csrf import CSRFProtectMiddleware
 
 
@@ -50,6 +50,7 @@ app.include_router(portfolios.router, prefix="/api")
 app.include_router(trades.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
+app.include_router(charges.router, prefix="/api")
 
 
 @app.get("/")
