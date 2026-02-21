@@ -7,7 +7,6 @@ from app.models import Trade, Portfolio, User, DailyCharge
 from app.models.trade import TradeStatus
 from app.crud import portfolio as portfolio_crud
 from app.auth.dependencies import get_current_active_user
-import numpy as np
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
