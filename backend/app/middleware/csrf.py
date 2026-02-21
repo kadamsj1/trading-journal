@@ -11,6 +11,10 @@ CSRF_TOKEN_EXPIRE_SECONDS = int(os.getenv("CSRF_TOKEN_EXPIRE_SECONDS", "3600"))
 CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "false").lower() == "true"
 CSRF_COOKIE_SAMESITE = os.getenv("CSRF_COOKIE_SAMESITE", "lax")
 
+# Disable CSRF for cross-domain Railway/cloud deployments
+# JWT Bearer tokens provide sufficient protection for API deployments
+CSRF_ENABLED = os.getenv("CSRF_ENABLED", "true").lower() == "true"
+
 CSRF_TOKEN_NAME = "csrf_token"
 CSRF_HEADER_NAME = "X-CSRF-Token"
 CSRF_COOKIE_NAME = "csrf_token"
@@ -66,6 +70,10 @@ class CSRFProtectMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
+        # If CSRF disabled (e.g. cross-domain Railway deployment), skip all CSRF logic
+        if not CSRF_ENABLED:
+            return await call_next(request)
+
         # Check if path is exempt from CSRF protection
         if self._is_exempt_path(request.url.path):
             response = await call_next(request)
