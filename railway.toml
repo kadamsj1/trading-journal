@@ -1,0 +1,3 @@
+[build]
+# Root level — Railway will detect individual service configs
+builder = "nixpacks"

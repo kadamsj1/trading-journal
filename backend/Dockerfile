@@ -23,11 +23,11 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Create uploads + data directory
+RUN mkdir -p uploads data
 
-# Expose port
+# Expose port (Railway will override via $PORT)
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application — Railway injects $PORT automatically
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
