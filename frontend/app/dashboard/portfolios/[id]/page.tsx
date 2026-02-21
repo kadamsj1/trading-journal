@@ -224,7 +224,7 @@ export default function PortfolioDetailPage() {
               <TabsTrigger value="all" className="rounded-xl font-bold">All Orders</TabsTrigger>
               <TabsTrigger value="open" className="rounded-xl font-bold">Open Active</TabsTrigger>
               <TabsTrigger value="closed" className="rounded-xl font-bold">History Log</TabsTrigger>
-              <TabsTrigger value="charges" className="rounded-xl font-bold text-orange-500 data-[state=active]:bg-orange-500 data-[state=active]:text-white">Charges</TabsTrigger>
+              <TabsTrigger value="charges" className="rounded-xl font-bold" >Charges</TabsTrigger>
             </TabsList>
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest bg-muted px-3 py-1.5 rounded-full">Automated sync</span>
           </div>
