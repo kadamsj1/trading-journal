@@ -30,11 +30,13 @@ import {
   Clock,
   ExternalLink,
   Target,
-  Plus
+  Plus,
+  UploadCloud
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatINR } from '@/lib/currency';
 import { useToast } from "@/components/ui/use-toast";
+import { cn } from '@/lib/utils';
 
 interface Trade {
   id: number;
@@ -50,6 +52,7 @@ interface Trade {
   profit_loss_percentage: number | null;
   notes: string | null;
   tags: string | null;
+  emotion: string | null;
   screenshot_path: string | null;
 }
 
@@ -68,6 +71,7 @@ export default function TradeDetailPage() {
   });
   const [file, setFile] = useState<File | null>(null);
   const { toast } = useToast();
+  const [isDragging, setIsDragging] = useState(false);
 
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editData, setEditData] = useState({
@@ -78,6 +82,7 @@ export default function TradeDetailPage() {
     quantity: '',
     notes: '',
     tags: '',
+    emotion: '',
     exit_price: '',
     exit_date: '',
     status: 'open'
@@ -101,6 +106,7 @@ export default function TradeDetailPage() {
         quantity: data.quantity.toString(),
         notes: data.notes || '',
         tags: data.tags || '',
+        emotion: data.emotion || '',
         exit_price: data.exit_price?.toString() || '',
         exit_date: data.exit_date ? new Date(data.exit_date).toISOString().split('T')[0] : '',
         status: data.status
@@ -145,6 +151,7 @@ export default function TradeDetailPage() {
         quantity: parseFloat(editData.quantity),
         notes: editData.notes || null,
         tags: editData.tags || null,
+        emotion: editData.emotion || null,
         status: editData.status
       };
 
@@ -190,10 +197,39 @@ export default function TradeDetailPage() {
       });
     } catch (error) {
       console.error('Failed to upload screenshot:', error);
+      const errorMsg = (error as any)?.response?.data?.detail || "File processing error.";
       toast({
         variant: "destructive",
         title: "Upload failed",
-        description: "File processing error.",
+        description: errorMsg,
+      });
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile && droppedFile.type.startsWith('image/')) {
+      setFile(droppedFile);
+      toast({
+        title: "File dropped",
+        description: `Selected ${droppedFile.name} for upload.`,
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Invalid file",
+        description: "Please drop an image file.",
       });
     }
   };
@@ -352,7 +388,21 @@ export default function TradeDetailPage() {
                 </Label>
               </div>
             </CardHeader>
-            <CardContent className="p-10">
+            <CardContent
+              className={cn(
+                "p-10 transition-all duration-300 relative",
+                isDragging ? "bg-primary/5 ring-4 ring-primary/40 ring-inset" : ""
+              )}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              {isDragging && (
+                <div className="absolute inset-0 z-50 bg-primary/10 backdrop-blur-[2px] flex flex-col items-center justify-center border-4 border-dashed border-primary animate-in fade-in duration-200">
+                  <UploadCloud className="h-16 w-16 text-primary mb-4 animate-bounce" />
+                  <p className="text-xl font-black text-primary uppercase tracking-widest">Drop Screenshot Here</p>
+                </div>
+              )}
               {trade.screenshot_path ? (
                 <div className="relative aspect-video rounded-3xl overflow-hidden border-4 border-muted group">
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10">
@@ -361,7 +411,7 @@ export default function TradeDetailPage() {
                     </Button>
                   </div>
                   <img
-                    src={`/api/uploads/${trade.screenshot_path}`}
+                    src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8001'}/api/uploads/screenshots/${trade.screenshot_path}`}
                     alt="Trade Screenshot"
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                   />
@@ -408,6 +458,14 @@ export default function TradeDetailPage() {
                   <span className="text-xs font-bold text-muted-foreground italic">No tags associated.</span>
                 )}
               </div>
+              {trade.emotion && (
+                <div className="mt-4 pt-4 border-t border-primary/10">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Psychological State</p>
+                  <div className="px-4 py-2 bg-primary/5 border border-primary/20 rounded-xl text-xs font-black text-primary">
+                    {trade.emotion}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -611,6 +669,24 @@ export default function TradeDetailPage() {
                 className="h-12 rounded-xl border-2 bg-muted/20 font-bold"
                 placeholder="Comma separated tags..."
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_emotion" className="text-[10px] font-black uppercase tracking-widest">Psychology / Emotion</Label>
+              <select
+                id="edit_emotion"
+                value={editData.emotion}
+                onChange={(e) => setEditData({ ...editData, emotion: e.target.value })}
+                className="flex h-12 w-full rounded-xl border-2 border-input bg-muted/20 px-4 py-2 text-sm font-black uppercase"
+              >
+                <option value="Planned Trade">Planned Trade</option>
+                <option value="FOMO">FOMO (Fear Of Missing Out)</option>
+                <option value="Revenge Trade">Revenge Trade</option>
+                <option value="Emotional Entry">Emotional Entry</option>
+                <option value="Fat Finger">Fat Finger / Oops</option>
+                <option value="Late Entry">Late Entry</option>
+                <option value="Overtrading">Overtrading</option>
+              </select>
             </div>
 
             <div className="space-y-2">

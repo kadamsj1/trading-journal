@@ -1,3 +1,4 @@
+aiofiles==23.2.1
 aiosqlite==0.19.0
 annotated-types==0.7.0
 anyio==3.7.1
@@ -36,3 +37,4 @@ websockets==15.0.1
 itsdangerous==2.1.2
 asyncpg==0.29.0
 psycopg2-binary==2.9.9
+httpx==0.28.1

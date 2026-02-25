@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from app.database import init_db
-from app.routers import auth, users, portfolios, trades, analytics, alerts, charges
+from app.routers import auth, users, portfolios, trades, analytics, alerts, charges, brokers
 from app.middleware.csrf import CSRFProtectMiddleware
+from pathlib import Path
 import os
 
 
@@ -59,6 +61,13 @@ app.include_router(trades.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 app.include_router(charges.router, prefix="/api")
+app.include_router(brokers.router, prefix="/api")
+
+# Serve uploaded screenshots as static files
+# URL: /api/uploads/screenshots/<filename>
+uploads_dir = Path("uploads/screenshots")
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/api/uploads/screenshots", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 @app.get("/")

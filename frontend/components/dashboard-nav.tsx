@@ -13,7 +13,8 @@ import {
   ChevronRight,
   User as UserIcon,
   ShieldCheck,
-  Bell
+  Bell,
+  Layers
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuthStore } from '@/lib/store';
@@ -57,6 +58,12 @@ export function DashboardNav() {
       href: '/dashboard/alerts',
       icon: Bell,
       description: 'Signal management'
+    },
+    {
+      title: 'Broker Access',
+      href: '/dashboard/brokers',
+      icon: Layers,
+      description: 'Broker API connections'
     },
   ];
 

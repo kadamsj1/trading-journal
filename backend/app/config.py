@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     CSRF_TOKEN_EXPIRE_SECONDS: int = 3600
     CSRF_COOKIE_SECURE: bool = os.getenv("ENVIRONMENT", "development") == "production"
     CSRF_COOKIE_SAMESITE: str = "lax"
+    CSRF_ENABLED: bool = True
 
     class Config:
         env_file = ".env"

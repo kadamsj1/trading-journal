@@ -108,6 +108,11 @@ export default function LoginPage() {
                       required
                     />
                   </div>
+                  <div className="flex justify-end pr-2">
+                    <Link href="/forgot-password" title="Access Recovery Terminal" className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors">
+                      Forgot Access Key?
+                    </Link>
+                  </div>
                 </div>
               </div>
 

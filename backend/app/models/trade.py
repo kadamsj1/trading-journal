@@ -43,7 +43,9 @@ class Trade(Base):
     # Additional info
     notes = Column(Text, nullable=True)
     tags = Column(String, nullable=True)  # Comma-separated tags
+    emotion = Column(String, nullable=True)  # Psychological tagging (FOMO, Revenge, etc.)
     screenshot_path = Column(String, nullable=True)  # Path to screenshot file
+    broker_trade_id = Column(String, nullable=True, index=True)  # Unique ID from Dhan/IIFL
 
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())

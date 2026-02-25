@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from typing import Dict, Any, List
 from app.database import get_db
 from app.models import Trade, Portfolio, User, DailyCharge
@@ -43,6 +43,12 @@ async def get_portfolio_analytics(
     )
     closed_trades = list(result.scalars().all())
 
+    # Get total daily charges
+    charge_res = await db.execute(
+        select(func.sum(DailyCharge.amount)).where(DailyCharge.portfolio_id == portfolio_id)
+    )
+    total_daily_charges = charge_res.scalar() or 0.0
+
     # Calculate statistics
     total_trades = len(closed_trades)
     
@@ -51,7 +57,7 @@ async def get_portfolio_analytics(
             "portfolio_id": portfolio_id,
             "portfolio_name": portfolio.name,
             "total_trades": 0,
-            "total_profit_loss": 0.0,
+            "total_profit_loss": round(-total_daily_charges, 2),
             "win_rate": 0.0,
             "average_profit_loss": 0.0,
             "best_trade": None,
@@ -64,7 +70,7 @@ async def get_portfolio_analytics(
             "patterns": []
         }
 
-    total_pl = sum(t.profit_loss or 0 for t in closed_trades)
+    total_pl = sum(t.profit_loss or 0 for t in closed_trades) - total_daily_charges
     winning_trades = [t for t in closed_trades if (t.profit_loss or 0) > 0]
     losing_trades = [t for t in closed_trades if (t.profit_loss or 0) <= 0]
 
@@ -242,11 +248,11 @@ async def get_daily_pl(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Get daily P&L for a portfolio"""
+    """Get daily P&L for a portfolio (including trade P&L and daily charges)"""
     await verify_portfolio_ownership(portfolio_id, current_user.id, db)
 
-    # Get all closed trades
-    result = await db.execute(
+    # 1. Get all closed trades
+    trade_res = await db.execute(
         select(Trade).where(
             and_(
                 Trade.portfolio_id == portfolio_id,
@@ -254,24 +260,29 @@ async def get_daily_pl(
             )
         )
     )
-    closed_trades = list(result.scalars().all())
+    closed_trades = list(trade_res.scalars().all())
+
+    # 2. Get all daily charges
+    charge_res = await db.execute(
+        select(DailyCharge).where(DailyCharge.portfolio_id == portfolio_id)
+    )
+    daily_charges = list(charge_res.scalars().all())
 
     import datetime as dt
-
     IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 
-    # Group by IST date
     daily_stats = {}
+
+    # Aggregate trade P&L
     for trade in closed_trades:
         if not trade.exit_date:
             continue
-
-        # exit_date may be timezone-aware (UTC) or naive (treated as UTC)
+            
         exit_utc = trade.exit_date
         if exit_utc.tzinfo is None:
             exit_utc = exit_utc.replace(tzinfo=dt.timezone.utc)
-        exit_ist  = exit_utc.astimezone(IST)
-        date_str  = exit_ist.strftime("%Y-%m-%d")
+        exit_ist = exit_utc.astimezone(IST)
+        date_str = exit_ist.strftime("%Y-%m-%d")
 
         if date_str not in daily_stats:
             daily_stats[date_str] = {
@@ -283,11 +294,26 @@ async def get_daily_pl(
         daily_stats[date_str]["profit_loss"] += trade.profit_loss or 0
         daily_stats[date_str]["trade_count"] += 1
 
-    # Round P&L
-    for date in daily_stats:
-        daily_stats[date]["profit_loss"] = round(daily_stats[date]["profit_loss"], 2)
+    # Subtract Daily Charges
+    for dc in daily_charges:
+        # dc.date is standard naive date object
+        date_str = dc.date.strftime("%Y-%m-%d")
+        
+        if date_str not in daily_stats:
+            daily_stats[date_str] = {
+                "date": date_str,
+                "profit_loss": 0.0,
+                "trade_count": 0
+            }
+        
+        daily_stats[date_str]["profit_loss"] -= dc.amount or 0.0
 
-    return {"daily_pl": list(daily_stats.values())}
+    # Round P&L
+    result_list = list(daily_stats.values())
+    for item in result_list:
+        item["profit_loss"] = round(item["profit_loss"], 2)
+
+    return {"daily_pl": result_list}
 
 
 

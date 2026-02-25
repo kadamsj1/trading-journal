@@ -11,18 +11,46 @@ def calculate_profit_loss(trade: Trade) -> tuple[float, float]:
     if trade.exit_price is None:
         return 0.0, 0.0
 
-    if trade.trade_type == "long":
-        pl = (trade.exit_price - trade.entry_price) * trade.quantity
+    # Determine trade type
+    t_type = trade.trade_type
+    if hasattr(t_type, "value"):
+        t_type = t_type.value
+        
+    if t_type == "long":
+        gross_pl = (trade.exit_price - trade.entry_price) * trade.quantity
     else:  # short
-        pl = (trade.entry_price - trade.exit_price) * trade.quantity
+        gross_pl = (trade.entry_price - trade.exit_price) * trade.quantity
 
-    pl_percentage = (pl / (trade.entry_price * trade.quantity)) * 100
-    return pl, pl_percentage
+    # Subtract per-trade charges
+    net_pl = gross_pl - (trade.charges or 0.0)
+    
+    # Calculate percentage based on total trade value
+    pl_percentage = (net_pl / (trade.entry_price * trade.quantity)) * 100
+    return net_pl, pl_percentage
 
 
 async def get_trade_by_id(db: AsyncSession, trade_id: int) -> Optional[Trade]:
     result = await db.execute(select(Trade).where(Trade.id == trade_id))
     return result.scalar_one_or_none()
+
+
+async def get_trade_by_broker_id(db: AsyncSession, broker_trade_id: str) -> Optional[Trade]:
+    result = await db.execute(select(Trade).where(Trade.broker_trade_id == broker_trade_id))
+    return result.scalars().first()
+
+
+async def get_open_trade_by_symbol(db: AsyncSession, portfolio_id: int, symbol: str) -> Optional[Trade]:
+    # Order by entry_date to match with the oldest open position if multiple exist
+    result = await db.execute(
+        select(Trade).where(
+            and_(
+                Trade.portfolio_id == portfolio_id,
+                Trade.symbol == symbol,
+                Trade.status == TradeStatus.OPEN
+            )
+        ).order_by(Trade.entry_date.asc())
+    )
+    return result.scalars().first()
 
 
 async def get_portfolio_trades(

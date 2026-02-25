@@ -5,15 +5,16 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature
 import os
 from typing import Optional
 
-# CSRF configuration from environment variables
-CSRF_SECRET = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
-CSRF_TOKEN_EXPIRE_SECONDS = int(os.getenv("CSRF_TOKEN_EXPIRE_SECONDS", "3600"))
-CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "false").lower() == "true"
-CSRF_COOKIE_SAMESITE = os.getenv("CSRF_COOKIE_SAMESITE", "lax")
+from app.config import get_settings
 
-# Disable CSRF for cross-domain Railway/cloud deployments
-# JWT Bearer tokens provide sufficient protection for API deployments
-CSRF_ENABLED = os.getenv("CSRF_ENABLED", "true").lower() == "true"
+settings = get_settings()
+
+# CSRF configuration from environment variables
+CSRF_SECRET = settings.SECRET_KEY
+CSRF_TOKEN_EXPIRE_SECONDS = settings.CSRF_TOKEN_EXPIRE_SECONDS
+CSRF_COOKIE_SECURE = settings.CSRF_COOKIE_SECURE
+CSRF_COOKIE_SAMESITE = settings.CSRF_COOKIE_SAMESITE
+CSRF_ENABLED = settings.CSRF_ENABLED
 
 CSRF_TOKEN_NAME = "csrf_token"
 CSRF_HEADER_NAME = "X-CSRF-Token"
@@ -26,6 +27,8 @@ CSRF_PROTECTED_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 CSRF_EXEMPT_PATHS = {
     "/api/auth/login",
     "/api/auth/register",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
     "/docs",
     "/openapi.json",
     "/health",
@@ -78,7 +81,7 @@ class CSRFProtectMiddleware(BaseHTTPMiddleware):
         if self._is_exempt_path(request.url.path):
             response = await call_next(request)
             # Set CSRF token cookie for exempt paths too (for subsequent requests)
-            if request.method == "POST" and request.url.path in ["/api/auth/login", "/api/auth/register"]:
+            if request.method == "POST" and request.url.path in ["/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/reset-password"]:
                 csrf_token = generate_csrf_token()
                 response.set_cookie(
                     key=CSRF_COOKIE_NAME,

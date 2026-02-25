@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from pathlib import Path
-import shutil
+import aiofiles
 from datetime import datetime
 from app.database import get_db
 from app.schemas.trade import Trade, TradeCreate, TradeUpdate, TradeClose
@@ -17,6 +17,52 @@ router = APIRouter(prefix="/trades", tags=["trades"])
 # Create uploads directory if it doesn't exist
 UPLOAD_DIR = Path("uploads/screenshots")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.get("/portfolio/{portfolio_id}/export")
+async def export_portfolio_trades(
+    portfolio_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Export all trades for a portfolio in CSV format"""
+    await verify_portfolio_ownership(portfolio_id, current_user.id, db)
+    trades = await trade_crud.get_portfolio_trades(db, portfolio_id=portfolio_id)
+    
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Headers
+    writer.writerow([
+        "ID", "Symbol", "Type", "Status", "Quantity", 
+        "Entry Price", "Entry Date", "Exit Price", "Exit Date", 
+        "Gross P&L", "Charges", "Net P&L", "P&L %", "Emotion", "Notes", "Tags"
+    ])
+    
+    # Rows
+    for t in trades:
+        # Calculate Gross P&L if not already there
+        gross_pl = (t.profit_loss or 0) + (t.charges or 0) if t.status == TradeStatus.CLOSED else 0
+        
+        writer.writerow([
+            t.id, t.symbol, t.trade_type.value if hasattr(t.trade_type, "value") else t.trade_type,
+            t.status.value if hasattr(t.status, "value") else t.status,
+            t.quantity, t.entry_price, t.entry_date.strftime("%Y-%m-%d %H:%M:%S") if t.entry_date else "",
+            t.exit_price or "", t.exit_date.strftime("%Y-%m-%d %H:%M:%S") if t.exit_date else "",
+            round(gross_pl, 2), t.charges or 0, t.profit_loss or 0,
+            round(t.profit_loss_percentage or 0, 2), t.emotion or "", t.notes or "", t.tags or ""
+        ])
+    
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=portfolio_{portfolio_id}_trades.csv"}
+    )
 
 
 async def verify_portfolio_ownership(portfolio_id: int, user_id: int, db: AsyncSession):
@@ -228,12 +274,16 @@ async def upload_screenshot(
     await verify_portfolio_ownership(trade.portfolio_id, current_user.id, db)
 
     # Validate file type
-    allowed_types = ["image/jpeg", "image/png", "image/jpg", "image/webp"]
+    print(f"DEBUG: Received file with content_type: {file.content_type}")
+    allowed_types = ["image/jpeg", "image/png", "image/jpg", "image/webp", "application/octet-stream"]
     if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only image files (JPEG, PNG, WebP) are allowed"
-        )
+        # Fallback check for extension
+        ext = Path(file.filename).suffix.lower()
+        if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Only image files (JPEG, PNG, WebP) are allowed. Got: {file.content_type}"
+            )
 
     # Create unique filename
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -241,13 +291,14 @@ async def upload_screenshot(
     filename = f"trade_{trade_id}_{timestamp}{file_extension}"
     file_path = UPLOAD_DIR / filename
 
-    # Save file
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    # Save file asynchronously (non-blocking)
+    contents = await file.read()
+    async with aiofiles.open(file_path, "wb") as buffer:
+        await buffer.write(contents)
 
-    # Update trade with screenshot path
+    # Store only the filename so the frontend URL is: /api/uploads/screenshots/<filename>
     from app.schemas.trade import TradeUpdate
-    trade_update = TradeUpdate(screenshot_path=str(file_path))
+    trade_update = TradeUpdate(screenshot_path=filename)
     await trade_crud.update_trade(db, trade_id=trade_id, trade_update=trade_update)
 
     return {"filename": filename, "path": str(file_path)}

@@ -20,3 +20,4 @@ class User(Base):
     # Relationships
     portfolios = relationship("Portfolio", back_populates="owner", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="user", cascade="all, delete-orphan")
+    brokers = relationship("Broker", back_populates="user", cascade="all, delete-orphan")

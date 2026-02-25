@@ -95,6 +95,8 @@ export const authApi = {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     return api.get('/auth/me', { headers });
   },
+  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (data: { token: string; new_password: string }) => api.post('/auth/reset-password', data),
 };
 
 // Users API (Admin only)
@@ -162,6 +164,21 @@ export const alertsApi = {
   getById: (id: number) => api.get(`/alerts/${id}`),
   update: (id: number, data: any) => api.patch(`/alerts/${id}`, data),
   delete: (id: number) => api.delete(`/alerts/${id}`),
+};
+
+// Brokers API
+export const brokersApi = {
+  getAll: () => api.get('/brokers'),
+  create: (data: { broker_name: string; client_id?: string; api_key?: string; api_secret?: string }) =>
+    api.post('/brokers', data),
+  delete: (id: number) => api.delete(`/brokers/${id}`),
+  sync: (id: number, portfolioId: number, fromDate?: string, toDate?: string) => {
+    let url = `/brokers/${id}/sync?portfolio_id=${portfolioId}`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+    return api.post(url);
+  },
+  getIIFLLoginUrl: () => api.get('/brokers/iifl/login-url'),
 };
 
 export default api;

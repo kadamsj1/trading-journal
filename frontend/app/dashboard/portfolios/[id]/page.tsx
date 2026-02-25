@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { portfoliosApi, tradesApi, chargesApi } from '@/lib/api';
+import { portfoliosApi, tradesApi, chargesApi, brokersApi } from '@/lib/api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,9 @@ import {
   Target,
   History,
   Receipt,
+  RefreshCw,
+  Wallet,
+  Zap,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatINR } from '@/lib/currency';
@@ -69,7 +72,9 @@ export default function PortfolioDetailPage() {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [charges, setCharges] = useState<DailyCharge[]>([]);
+  const [brokers, setBrokers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   // Modal state
   const [chargesModal, setChargesModal] = useState(false);
@@ -78,6 +83,10 @@ export default function PortfolioDetailPage() {
   const [chargeDate, setChargeDate] = useState(new Date().toISOString().split('T')[0]);
   const [chargeNotes, setChargeNotes] = useState('');
   const [chargesLoading, setChargesLoading] = useState(false);
+  const [syncModal, setSyncModal] = useState(false);
+  const [syncFromDate, setSyncFromDate] = useState(new Date().toISOString().split('T')[0]);
+  const [syncToDate, setSyncToDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedBroker, setSelectedBroker] = useState<number | null>(null);
 
   useEffect(() => {
     fetchAll();
@@ -85,14 +94,16 @@ export default function PortfolioDetailPage() {
 
   const fetchAll = async () => {
     try {
-      const [portRes, tradeRes, chargeRes] = await Promise.all([
+      const [portRes, tradeRes, chargeRes, brokerRes] = await Promise.all([
         portfoliosApi.getById(portfolioId),
         tradesApi.getByPortfolio(portfolioId),
         chargesApi.getByPortfolio(portfolioId),
+        brokersApi.getAll().catch(() => ({ data: [] })),
       ]);
       setPortfolio(portRes.data);
       setTrades(tradeRes.data);
       setCharges(chargeRes.data);
+      setBrokers(brokerRes.data);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -153,6 +164,59 @@ export default function PortfolioDetailPage() {
     }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api'}/trades/portfolio/${portfolioId}/export`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `portfolio_${portfolioId}_trades.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({ title: '✅ Export Success', description: 'Your trade data has been downloaded.' });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast({ variant: 'destructive', title: 'Export Error', description: 'Failed to download CSV data.' });
+    }
+  };
+
+  const openSyncModal = (brokerId: number) => {
+    setSelectedBroker(brokerId);
+    setSyncModal(true);
+  };
+
+  const handleSyncBroker = async () => {
+    if (!selectedBroker) return;
+    setSyncing(true);
+    try {
+      const res = await brokersApi.sync(selectedBroker, portfolioId, syncFromDate, syncToDate);
+      const { message, count, updated, total_at_broker, status } = res.data;
+      toast({
+        title: status === 'VERIFIED' ? '✅ SYNC VERIFIED' : '⚠️ SYNC PARTIAL',
+        description: `${message} (Broker Total: ${total_at_broker})`
+      });
+      setSyncModal(false);
+      fetchAll();
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || 'Broker sync failed.';
+      toast({ variant: 'destructive', title: 'Sync Error', description: msg });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const openTrades = trades.filter(t => t.status === 'open');
   const closedTrades = trades.filter(t => t.status === 'closed');
   const totalPL = closedTrades.reduce((sum, t) => sum + (t.profit_loss || 0), 0);
@@ -195,6 +259,41 @@ export default function PortfolioDetailPage() {
             <Receipt className="h-5 w-5" />
             Add Charges
           </Button>
+          <Button
+            variant="outline"
+            className="h-12 px-6 rounded-2xl font-bold gap-2 border-primary/40 text-primary hover:bg-primary/5 transition-all"
+            onClick={handleExportCSV}
+          >
+            <History className="h-5 w-5" />
+            Export CSV
+          </Button>
+          {brokers.length > 0 ? (
+            <Button
+              variant="outline"
+              disabled={syncing}
+              className="h-12 px-6 rounded-2xl font-bold gap-2 border-primary/40 text-primary hover:bg-primary/5 transition-all"
+              onClick={() => openSyncModal(brokers[0].id)}
+            >
+              <RefreshCw className={cn("h-5 w-5", syncing && "animate-spin")} />
+              {syncing ? 'Syncing...' : `Sync ${brokers[0].broker_name}`}
+            </Button>
+          ) : (
+            <Link href="/dashboard/brokers">
+              <Button
+                variant="outline"
+                className="h-12 px-6 rounded-2xl font-bold gap-2 border-primary/10 text-muted-foreground hover:text-primary transition-all"
+              >
+                <Zap className="h-5 w-5 text-primary opacity-50" />
+                Link Broker
+              </Button>
+            </Link>
+          )}
+          <Link href={`/dashboard/portfolios/${portfolioId}/calendar`}>
+            <Button variant="outline" className="h-12 px-6 rounded-2xl font-bold gap-2 border-primary/40 text-primary hover:bg-primary/5 transition-all">
+              <Calendar className="h-5 w-5" />
+              Trading Calendar
+            </Button>
+          </Link>
           <Link href={`/dashboard/portfolios/${portfolioId}/trades/new`}>
             <Button className="h-12 px-6 rounded-2xl font-bold gap-2">
               <Plus className="h-5 w-5" />
@@ -429,6 +528,61 @@ export default function PortfolioDetailPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── SYNC MODAL ─────────────────────────────────────── */}
+      <Dialog open={syncModal} onOpenChange={setSyncModal}>
+        <DialogContent className="max-w-sm rounded-[2rem] border-none shadow-2xl p-0 overflow-hidden">
+          <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-b border-primary/10 p-6">
+            <div className="flex items-center gap-3">
+              <div className="h-11 w-11 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <RefreshCw className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-black tracking-tight">Sync Broker Trades</DialogTitle>
+                <DialogDescription className="text-[10px] font-black uppercase tracking-widest opacity-50">
+                  Select date range for historical sync
+                </DialogDescription>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">From Date</Label>
+              <Input
+                type="date"
+                value={syncFromDate}
+                onChange={e => setSyncFromDate(e.target.value)}
+                className="h-12 rounded-xl border-2 bg-muted/20 focus:bg-background font-bold text-sm transition-all"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">To Date</Label>
+              <Input
+                type="date"
+                value={syncToDate}
+                onChange={e => setSyncToDate(e.target.value)}
+                className="h-12 rounded-xl border-2 bg-muted/20 focus:bg-background font-bold text-sm transition-all"
+              />
+            </div>
+
+            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 text-xs font-medium text-muted-foreground leading-relaxed">
+              <p>⚠️ <strong>Note:</strong> Existing trades with the same Broker ID will be <strong>updated</strong> with fresh data to fix any errors.</p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="ghost" className="flex-1 h-11 rounded-xl font-bold" onClick={() => setSyncModal(false)}>Cancel</Button>
+              <Button
+                disabled={syncing}
+                className="flex-1 h-11 rounded-xl font-black shadow-lg shadow-primary/20"
+                onClick={handleSyncBroker}
+              >
+                {syncing ? 'Syncing...' : 'Start Sync'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

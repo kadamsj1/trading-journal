@@ -72,3 +72,15 @@ async def delete_user(db: AsyncSession, user_id: int) -> bool:
     await db.delete(db_user)
     await db.commit()
     return True
+
+
+async def update_password(db: AsyncSession, user_id: int, new_password: str) -> bool:
+    result = await db.execute(select(User).where(User.id == user_id))
+    db_user = result.scalar_one_or_none()
+    
+    if db_user is None:
+        return False
+        
+    db_user.hashed_password = get_password_hash(new_password)
+    await db.commit()
+    return True

@@ -33,6 +33,7 @@ export default function NewTradePage() {
     notes: '',
     tags: '',
     charges: '',
+    emotion: 'Planned Trade',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -60,6 +61,7 @@ export default function NewTradePage() {
         notes: formData.notes || undefined,
         tags: formData.tags || undefined,
         charges: formData.charges ? parseFloat(formData.charges) : 0,
+        emotion: formData.emotion || undefined,
       });
       router.push(`/dashboard/portfolios/${portfolioId}`);
     } catch (err: any) {
@@ -221,6 +223,24 @@ export default function NewTradePage() {
                     onChange={handleChange}
                     className="rounded-xl border-2 bg-muted/20 focus:bg-background transition-all text-xs font-bold"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emotion" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Psychology / Emotion</Label>
+                  <select
+                    id="emotion"
+                    name="emotion"
+                    value={formData.emotion}
+                    onChange={handleChange}
+                    className="flex h-10 w-full rounded-xl border-2 border-input bg-muted/20 px-3 py-1 text-xs font-bold focus:bg-background outline-none transition-all cursor-pointer"
+                  >
+                    <option value="Planned Trade">✅ Planned Trade</option>
+                    <option value="FOMO">😱 FOMO (Fear Of Missing Out)</option>
+                    <option value="Revenge Trade">😡 Revenge Trade</option>
+                    <option value="Emotional Entry">🎢 Emotional Entry</option>
+                    <option value="Fat Finger">⌨️ Fat Finger / Oops</option>
+                    <option value="Late Entry">🐢 Late Entry</option>
+                    <option value="Overtrading">🔄 Overtrading</option>
+                  </select>
                 </div>
               </div>
             </CardContent>
