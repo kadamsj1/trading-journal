@@ -38,12 +38,13 @@ allow_origins = [
     "http://127.0.0.1:3002",
     "https://vibe.marketcalls.in",
     "http://vibe.marketcalls.in",
+    "https://trading-journal-3zgb.vercel.app", # User's Vercel Domain
 ] + _extra_origins
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
-    allow_origin_regex=r"https://.*\.railway\.app",  # allow all Railway URLs
+    allow_origin_regex=r"https://.*\.railway\.app|https://.*\.vercel\.app",  # allow Railway and Vercel domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
