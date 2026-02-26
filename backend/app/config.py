@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "Smart Journal")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+    # Upload Settings
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads/screenshots")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

@@ -66,8 +66,22 @@ app.include_router(brokers.router, prefix="/api")
 
 # Serve uploaded screenshots as static files
 # URL: /api/uploads/screenshots/<filename>
-uploads_dir = Path("uploads/screenshots")
-uploads_dir.mkdir(parents=True, exist_ok=True)
+from app.config import get_settings
+_settings = get_settings()
+
+uploads_dir = Path(_settings.UPLOAD_DIR)
+
+# Vercel fix: Use /tmp for uploads if in Vercel environment
+if os.getenv("VERCEL"):
+    uploads_dir = Path("/tmp") / _settings.UPLOAD_DIR
+
+# Only attempt to create directory if not in a read-only environment
+# or if it's the /tmp directory
+try:
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    print(f"Warning: Could not create upload directory {uploads_dir}: {e}")
+
 app.mount("/api/uploads/screenshots", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 

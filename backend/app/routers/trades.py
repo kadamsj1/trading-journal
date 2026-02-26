@@ -12,11 +12,23 @@ from app.crud import portfolio as portfolio_crud
 from app.auth.dependencies import get_current_active_user
 from app.models import User
 
+from app.config import get_settings
+import os
+
+settings = get_settings()
 router = APIRouter(prefix="/trades", tags=["trades"])
 
 # Create uploads directory if it doesn't exist
-UPLOAD_DIR = Path("uploads/screenshots")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR = Path(settings.UPLOAD_DIR)
+
+# Vercel fix: Use /tmp for uploads
+if os.getenv("VERCEL"):
+    UPLOAD_DIR = Path("/tmp") / settings.UPLOAD_DIR
+
+try:
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    print(f"Warning: Could not create upload directory {UPLOAD_DIR}: {e}")
 
 
 @router.get("/portfolio/{portfolio_id}/export")
