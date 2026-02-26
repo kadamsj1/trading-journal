@@ -8,6 +8,7 @@ from app.crud import user as user_crud
 from app.auth.utils import verify_password, create_access_token, verify_token
 from app.auth.dependencies import get_current_active_user
 from app.config import get_settings
+from app.utils.email import send_reset_password_email
 
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -91,10 +92,12 @@ async def forgot_password(
         expires_delta=timedelta(minutes=15)
     )
 
-    # In a real app, send email here. For now, print to console.
-    print(f"\n[PASSWORD RESET] User: {user.username}, Email: {user.email}")
-    print(f"[PASSWORD RESET] Token: {reset_token}")
-    print(f"[PASSWORD RESET] Client Link: http://localhost:3000/reset-password?token={reset_token}\n")
+    # Send email
+    await send_reset_password_email(
+        email_to=user.email,
+        token=reset_token,
+        username=user.username
+    )
 
     return {"message": "If an account exists with this email, you will receive a reset link."}
 
