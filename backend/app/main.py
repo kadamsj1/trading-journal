@@ -12,7 +12,12 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Initialize database
-    await init_db()
+    try:
+        print("Starting database initialization...")
+        await init_db()
+        print("Database initialized successfully.")
+    except Exception as e:
+        print(f"CRITICAL: Database initialization failed: {e}")
     yield
     # Shutdown: Cleanup (if needed)
 
