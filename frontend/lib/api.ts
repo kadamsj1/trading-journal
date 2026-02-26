@@ -156,15 +156,6 @@ export const chargesApi = {
   delete: (id: number) => api.delete(`/charges/${id}`),
 };
 
-// Alerts API
-export const alertsApi = {
-  getAll: (activeOnly = false) => api.get(`/alerts?active_only=${activeOnly}`),
-  create: (data: { symbol: string; price: number; condition: string; message?: string }) =>
-    api.post('/alerts', data),
-  getById: (id: number) => api.get(`/alerts/${id}`),
-  update: (id: number, data: any) => api.patch(`/alerts/${id}`, data),
-  delete: (id: number) => api.delete(`/alerts/${id}`),
-};
 
 // Brokers API
 export const brokersApi = {

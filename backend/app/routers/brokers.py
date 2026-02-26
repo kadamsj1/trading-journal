@@ -148,6 +148,10 @@ async def sync_broker_trades(
 
     orders = await client.fetch_orders(from_date=from_date, to_date=to_date)
     
+    # Ensure orders is a list (some APIs return an error dict if no trades)
+    if not isinstance(orders, list):
+        orders = []
+    
     # Sort orders by execution date to process sequentially
     orders.sort(key=lambda x: x.get("fillTimestamp") or x.get("exchangeTimestamp") or "")
 

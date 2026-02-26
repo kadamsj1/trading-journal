@@ -17,6 +17,13 @@ def check_db():
         portfolios = cursor.fetchall()
         for p in portfolios:
             print(f"ID: {p[0]}, Name: {p[1]}, User ID: {p[2]}")
+
+        print("\n--- Brokers ---")
+        cursor.execute("SELECT id, broker_name, client_id, access_token FROM brokers")
+        brokers = cursor.fetchall()
+        for b in brokers:
+            token_display = f"{b[3][:10]}..." if b[3] else "None"
+            print(f"ID: {b[0]}, Name: {b[1]}, Client ID: {b[2]}, Token: {token_display}")
             
         conn.close()
     except Exception as e:

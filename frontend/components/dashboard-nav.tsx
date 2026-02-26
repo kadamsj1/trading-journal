@@ -54,12 +54,6 @@ export function DashboardNav() {
       description: 'Performance insights'
     },
     {
-      title: 'Active Alerts',
-      href: '/dashboard/alerts',
-      icon: Bell,
-      description: 'Signal management'
-    },
-    {
       title: 'Broker Access',
       href: '/dashboard/brokers',
       icon: Layers,

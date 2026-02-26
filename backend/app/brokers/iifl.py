@@ -63,7 +63,12 @@ class IIFLClient(BrokerClient):
             data = response.json()
             if isinstance(data, list):
                 return data
-            return data.get("result", []) if isinstance(data, dict) else []
+            
+            result = data.get("result", [])
+            # IIFL returns a dict with error message in 'result' if no trades exist
+            if isinstance(result, list):
+                return result
+            return []
 
     def _format_trading_symbol(self, symbol: str) -> str:
         """Format raw ticker to clean 'SYMBOL STRIKE TYPE' format"""
