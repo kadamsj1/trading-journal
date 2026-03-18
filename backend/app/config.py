@@ -11,8 +11,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24h default
 
     # Database URL configuration
-    # Default to local SQLite if not provided
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./trade_journal.db")
+    # 1. Use Vercel Postgres URL if available
+    # 2. Fall back to standard DATABASE_URL
+    # 3. Default to local SQLite
+    DATABASE_URL: str = os.getenv("POSTGRES_URL", os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./trade_journal.db"))
 
     # CSRF Settings
     CSRF_TOKEN_EXPIRE_SECONDS: int = 3600
