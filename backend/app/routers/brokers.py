@@ -71,11 +71,22 @@ async def get_iifl_login_url(
     if not iifl or not iifl.api_key:
         raise HTTPException(status_code=400, detail="IIFL API Key missing. Please link broker first.")
     
-    # Base URL for login
     # Redirect back to our callback endpoint
+    # Note: IIFL requires full URL encoding and sometimes has issues with localhost.
+    # We use the frontend proxy URL which then hits our backend.
     from urllib.parse import quote
-    redirect_url = quote("http://localhost:3000/api/brokers/iifl/callback")
-    login_url = f"https://markets.iiflcapital.com/?v=1&appkey={iifl.api_key}&redirecturl={redirect_url}"
+    
+    # Try different combinations of parameters that IIFL documentation suggests
+    # Standard: redirecturl (no underscore)
+    # Some apps: redirect_url (with underscore)
+    callback_url = "http://localhost:3000/api/brokers/iifl/callback"
+    encoded_callback = quote(callback_url, safe='')
+    
+    # Modern IIFL login URL pattern
+    login_url = f"https://markets.iiflcapital.com/login?appkey={iifl.api_key}&redirecturl={encoded_callback}&redirect_url={encoded_callback}"
+    
+    # Fallback to the one that almost worked but with better encoding
+    # login_url = f"https://markets.iiflcapital.com/?v=1&appkey={iifl.api_key}&redirecturl={encoded_callback}"
     
     return {"login_url": login_url}
 

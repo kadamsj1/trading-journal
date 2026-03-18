@@ -8,14 +8,18 @@ settings = get_settings()
 
 # Connection arguments
 connect_args = {}
-if settings.get_database_url.startswith("postgresql"):
-    # Supabase/PostgreSQL often require SSL
+if settings.get_database_url.startswith("postgresql") and "localhost" not in settings.get_database_url and "127.0.0.1" not in settings.get_database_url:
+    # Supabase/Remote PostgreSQL often require SSL
     connect_args["ssl"] = "require"
 
 engine = create_async_engine(
     settings.get_database_url,
     echo=True,
     future=True,
+    pool_size=2,              # Reduced for serverless
+    max_overflow=0,           # No overflow to keep it strict
+    pool_timeout=30,
+    pool_pre_ping=True,      # Check connection before using it
     connect_args=connect_args if connect_args else {}
 )
 

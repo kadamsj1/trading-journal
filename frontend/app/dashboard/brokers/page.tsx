@@ -189,23 +189,54 @@ export default function BrokersPage() {
 
                                     <div className="space-y-3">
                                         {broker.broker_name === 'iifl' && (
-                                            <Button
-                                                onClick={async () => {
-                                                    try {
-                                                        const res = await brokersApi.getIIFLLoginUrl();
-                                                        window.location.href = res.data.login_url;
-                                                    } catch (err: any) {
-                                                        toast({
-                                                            variant: 'destructive',
-                                                            title: 'Login Link Failed',
-                                                            description: err.response?.data?.detail || 'Could not reach IIFL Gateway'
-                                                        });
-                                                    }
-                                                }}
-                                                className="w-full h-12 rounded-xl bg-orange-500 hover:bg-orange-600 font-extrabold transition-all gap-2"
-                                            >
-                                                <ShieldCheck className="h-4 w-4" /> PROVISION SESSION
-                                            </Button>
+                                            <>
+                                                <Button
+                                                    onClick={async () => {
+                                                        try {
+                                                            const res = await brokersApi.getIIFLLoginUrl();
+                                                            window.location.href = res.data.login_url;
+                                                        } catch (err: any) {
+                                                            toast({
+                                                                variant: 'destructive',
+                                                                title: 'Login Link Failed',
+                                                                description: err.response?.data?.detail || 'Could not reach IIFL Gateway'
+                                                            });
+                                                        }
+                                                    }}
+                                                    className="w-full h-12 rounded-xl bg-orange-500 hover:bg-orange-600 font-extrabold transition-all gap-2"
+                                                >
+                                                    <ShieldCheck className="h-4 w-4" /> PROVISION SESSION
+                                                </Button>
+                                                <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-2">
+                                                    <p className="text-[10px] font-black uppercase text-primary tracking-widest leading-none">Redirect Issue?</p>
+                                                    <p className="text-[9px] font-bold text-muted-foreground leading-tight">
+                                                        If IIFL gets stuck after login, check the address bar for <span className="text-primary">authcode=...</span> and <span className="text-primary">clientid=...</span> then click the link below to manually finish.
+                                                    </p>
+                                                    <Button
+                                                        variant="link"
+                                                        className="h-auto p-0 text-[10px] font-black uppercase text-primary underline"
+                                                        onClick={() => {
+                                                            const input = prompt("Paste the full URL from the IIFL page (it contains authcode and clientid):");
+                                                            if (input) {
+                                                                try {
+                                                                    const url = new URL(input.includes('http') ? input : `http://dummy.com/${input}`);
+                                                                    const authcode = url.searchParams.get('authcode');
+                                                                    const clientid = url.searchParams.get('clientid');
+                                                                    if (authcode && clientid) {
+                                                                        window.location.href = `/api/brokers/iifl/callback?authcode=${authcode}&clientid=${clientid}`;
+                                                                    } else {
+                                                                        alert("Could not find authcode or clientid in that text.");
+                                                                    }
+                                                                } catch (e) {
+                                                                    alert("Invalid URL format.");
+                                                                }
+                                                            }
+                                                        }}
+                                                    >
+                                                        Manual Callback Completion
+                                                    </Button>
+                                                </div>
+                                            </>
                                         )}
                                         <Button
                                             variant="ghost"
