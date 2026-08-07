@@ -172,4 +172,29 @@ export const brokersApi = {
   getIIFLLoginUrl: () => api.get('/brokers/iifl/login-url'),
 };
 
+// Vault Transactions API (Ledger)
+export const vaultApi = {
+  getByPortfolio: (portfolioId: number) => api.get(`/vault/portfolio/${portfolioId}`),
+  getSummary: (portfolioId: number) => api.get(`/vault/portfolio/${portfolioId}/summary`),
+  create: (portfolioId: number, data: {
+    transaction_type: 'deposit' | 'withdrawal';
+    amount: number;
+    date: string;
+    notes?: string;
+  }) => api.post(`/vault/portfolio/${portfolioId}`, data),
+  update: (id: number, data: {
+    transaction_type?: 'deposit' | 'withdrawal';
+    amount?: number;
+    date?: string;
+    notes?: string;
+  }) => api.patch(`/vault/${id}`, data),
+  delete: (id: number) => api.delete(`/vault/${id}`),
+
+  // Day Close
+  dayClosePreview: (portfolioId: number, closeDate: string) =>
+    api.get(`/vault/portfolio/${portfolioId}/day-close/preview?close_date=${closeDate}`),
+  dayCloseExecute: (portfolioId: number, closeDate: string) =>
+    api.post(`/vault/portfolio/${portfolioId}/day-close?close_date=${closeDate}`),
+};
+
 export default api;

@@ -19,3 +19,4 @@ class Portfolio(Base):
     owner = relationship("User", back_populates="portfolios")
     trades = relationship("Trade", back_populates="portfolio", cascade="all, delete-orphan")
     daily_charges = relationship("DailyCharge", back_populates="portfolio", cascade="all, delete-orphan")
+    vault_transactions = relationship("VaultTransaction", back_populates="portfolio", cascade="all, delete-orphan")

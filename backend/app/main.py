@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from app.database import init_db
-from app.routers import auth, users, portfolios, trades, analytics, charges, brokers
+from app.routers import auth, users, portfolios, trades, analytics, charges, brokers, vault
 from app.middleware.csrf import CSRFProtectMiddleware
 from pathlib import Path
 import os
@@ -16,6 +16,17 @@ async def lifespan(app: FastAPI):
         print("Starting database initialization...")
         await init_db()
         print("Database initialized successfully.")
+        # ── Safe column migrations ────────────────────────────
+        from app.database import engine
+        from sqlalchemy import text
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                "ALTER TABLE vault_transactions ADD COLUMN IF NOT EXISTS is_auto BOOLEAN DEFAULT FALSE"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE vault_transactions ADD COLUMN IF NOT EXISTS source VARCHAR DEFAULT 'manual'"
+            ))
+        print("Vault migrations applied.")
     except Exception as e:
         print(f"CRITICAL: Database initialization failed: {e}")
     yield
@@ -68,6 +79,7 @@ app.include_router(analytics.router, prefix="/api")
 
 app.include_router(charges.router, prefix="/api")
 app.include_router(brokers.router, prefix="/api")
+app.include_router(vault.router, prefix="/api")
 
 # Serve uploaded screenshots as static files
 # URL: /api/uploads/screenshots/<filename>
