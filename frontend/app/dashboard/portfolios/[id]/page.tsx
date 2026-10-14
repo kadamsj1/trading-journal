@@ -30,6 +30,7 @@ import {
   Zap,
   ArrowDownCircle,
   ArrowUpCircle,
+  Pencil,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatINR } from '@/lib/currency';
@@ -610,7 +611,7 @@ export default function PortfolioDetailPage() {
                         <th className="font-black text-[10px] uppercase tracking-widest h-11 px-5 text-right text-red-500 w-[140px]">Debit (Dr)</th>
                         <th className="font-black text-[10px] uppercase tracking-widest h-11 px-5 text-right text-emerald-600 w-[140px]">Credit (Cr)</th>
                         <th className="font-black text-[10px] uppercase tracking-widest h-11 px-5 text-right text-primary w-[160px]">Balance</th>
-                        <th className="w-[80px]"></th>
+                        <th className="font-black text-[10px] uppercase tracking-widest h-11 px-4 text-center text-muted-foreground w-[130px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -688,15 +689,28 @@ export default function PortfolioDetailPage() {
                               <td className="px-5 py-3.5 text-right">
                                 <span className={`font-black text-sm ${
                                   isPositive ? 'text-primary' : 'text-red-600'
-                                }`}>{isPositive ? '' : '-'}{formatINR(Math.abs(runningBalance))}</span>
+                                }}`}>{isPositive ? '' : '-'}{formatINR(Math.abs(runningBalance))}</span>
                               </td>
                               {/* Actions */}
-                              <td className="px-3 py-3.5">
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button className="h-7 px-2 rounded-lg text-[10px] font-black hover:bg-primary/10 hover:text-primary transition-colors uppercase tracking-wide"
-                                    onClick={() => openEditVault(t)}>Edit</button>
-                                  <button className="h-7 w-7 rounded-lg text-red-500 hover:bg-red-500/10 flex items-center justify-center transition-colors"
-                                    onClick={() => handleDeleteVault(t.id)}><Trash2 className="h-3.5 w-3.5" /></button>
+                              <td className="px-3 py-3.5 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditVault(t)}
+                                    title="Edit Entry"
+                                    className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-bold border border-border/80 hover:border-primary/50 hover:bg-primary/10 hover:text-primary transition-all text-foreground/80 shadow-xs"
+                                  >
+                                    <Pencil className="h-3 w-3 text-primary" />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteVault(t.id)}
+                                    title="Delete Entry"
+                                    className="h-7 w-7 rounded-lg text-red-500 border border-red-500/30 hover:border-red-500/70 hover:bg-red-500/10 flex items-center justify-center transition-all shadow-xs"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -990,25 +1004,23 @@ export default function PortfolioDetailPage() {
                 </DialogDescription>
               </div>
             </div>
-            {/* Type toggle — only for new entries */}
-            {!editingVault && (
-              <div className="flex gap-2 mt-4">
-                <button
-                  type="button"
-                  onClick={() => setVaultType('deposit')}
-                  className={`flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                    vaultType === 'deposit' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-muted/40 text-muted-foreground hover:bg-muted'
-                  }`}
-                >Cr — Credit</button>
-                <button
-                  type="button"
-                  onClick={() => setVaultType('withdrawal')}
-                  className={`flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                    vaultType === 'withdrawal' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-muted/40 text-muted-foreground hover:bg-muted'
-                  }`}
-                >Dr — Debit</button>
-              </div>
-            )}
+            {/* Type toggle — allows switching between Credit and Debit */}
+            <div className="flex gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setVaultType('deposit')}
+                className={`flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                  vaultType === 'deposit' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-muted/40 text-muted-foreground hover:bg-muted'
+                }`}
+              >Cr — Credit</button>
+              <button
+                type="button"
+                onClick={() => setVaultType('withdrawal')}
+                className={`flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                  vaultType === 'withdrawal' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-muted/40 text-muted-foreground hover:bg-muted'
+                }`}
+              >Dr — Debit</button>
+            </div>
           </div>
 
           {/* Form */}
@@ -1082,7 +1094,22 @@ export default function PortfolioDetailPage() {
               </div>
             )}
             {/* Buttons */}
-            <div className="flex gap-3 pt-1">
+            <div className="flex gap-2 pt-1">
+              {editingVault && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="h-11 px-3.5 rounded-xl font-bold gap-1.5 text-xs bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/30 transition-all"
+                  onClick={() => {
+                    const idToDelete = editingVault.id;
+                    setVaultModal(false);
+                    handleDeleteVault(idToDelete);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Delete</span>
+                </Button>
+              )}
               <Button type="button" variant="ghost" className="flex-1 h-11 rounded-xl font-bold opacity-60 hover:opacity-100" onClick={() => setVaultModal(false)}>Cancel</Button>
               <Button type="submit" disabled={vaultLoading} className={`flex-1 h-11 rounded-xl font-black text-white shadow-lg ${
                 vaultType === 'deposit' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-red-500 hover:bg-red-600 shadow-red-500/20'
