@@ -29,9 +29,8 @@ export function DashboardNav() {
   const { user, logout } = useAuthStore();
   const [open, setOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
+  const handleLogout = async () => {
+    await logout(); // server clears HttpOnly cookie, then redirects to /login
   };
 
   const navItems = [

@@ -12,32 +12,28 @@ interface User {
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  register: (data: { email: string; username: string; password: string; full_name?: string }) => Promise<void>;
-  logout: () => void;
+  register: (data: {
+    email: string;
+    username: string;
+    password: string;
+    full_name?: string;
+  }) => Promise<void>;
+  logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
   isLoading: false,
 
   login: async (username: string, password: string) => {
     set({ isLoading: true });
     try {
+      // Server sets HttpOnly cookie automatically — we just get user info back
       const response = await authApi.login(username, password);
-      const { access_token } = response.data;
-      localStorage.setItem('token', access_token);
-
-      // Fetch user details - explicitly pass token
-      const userResponse = await authApi.me(access_token);
-      const user = userResponse.data;
-      localStorage.setItem('user', JSON.stringify(user));
-
-      set({ user, token: access_token, isLoading: false });
+      set({ user: response.data, isLoading: false });
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -56,26 +52,29 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    set({ user: null, token: null });
+  logout: async () => {
+    try {
+      // Server clears the HttpOnly cookie
+      await authApi.logout();
+    } catch {
+      // Even if server call fails, clear local state
+    }
+    set({ user: null });
+    // Redirect to login
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   },
 
   checkAuth: async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      set({ user: null, token: null });
-      return;
-    }
-
+    set({ isLoading: true });
     try {
+      // Cookie automatically sent — server validates it
       const response = await authApi.me();
-      set({ user: response.data, token });
-    } catch (error) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      set({ user: null, token: null });
+      set({ user: response.data, isLoading: false });
+    } catch {
+      // Cookie invalid or expired
+      set({ user: null, isLoading: false });
     }
   },
 }));
