@@ -1,3 +1,4 @@
+import logging
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +8,7 @@ from app.models import User
 from app.auth.utils import verify_token
 from app.schemas.user import TokenData
 
+logger = logging.getLogger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 
@@ -20,37 +22,25 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    print(f"DEBUG: Received token: {token[:20]}..." if token else "DEBUG: No token received")
-
     payload = verify_token(token)
-    print(f"DEBUG: Payload: {payload}")
-
     if payload is None:
-        print("DEBUG: Payload is None - token verification failed")
         raise credentials_exception
 
     user_id_str = payload.get("sub")
-    print(f"DEBUG: user_id from payload: {user_id_str} (type: {type(user_id_str)})")
-
     if user_id_str is None:
-        print("DEBUG: user_id is None")
         raise credentials_exception
 
     try:
         user_id = int(user_id_str)
-        print(f"DEBUG: Converted user_id to int: {user_id}")
-    except (ValueError, TypeError) as e:
-        print(f"DEBUG: Failed to convert user_id to int: {e}")
+    except (ValueError, TypeError):
         raise credentials_exception
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
     if user is None:
-        print(f"DEBUG: User not found with id: {user_id}")
         raise credentials_exception
 
-    print(f"DEBUG: User found: {user.username}")
     return user
 
 

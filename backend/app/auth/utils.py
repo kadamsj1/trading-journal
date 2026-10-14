@@ -1,13 +1,15 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.config import get_settings
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 pwd_context = CryptContext(
-    schemes=["bcrypt"], 
+    schemes=["bcrypt"],
     deprecated="auto",
     bcrypt__truncate_error=True
 )
@@ -35,15 +37,12 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def verify_token(token: str) -> Optional[dict]:
     try:
-        print(f"DEBUG verify_token: Attempting to decode token")
-        print(f"DEBUG verify_token: SECRET_KEY = {settings.SECRET_KEY[:10]}...")
-        print(f"DEBUG verify_token: ALGORITHM = {settings.ALGORITHM}")
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        print(f"DEBUG verify_token: Successfully decoded payload: {payload}")
         return payload
-    except JWTError as e:
-        print(f"DEBUG verify_token: JWTError occurred: {type(e).__name__}: {str(e)}")
+    except JWTError:
+        # Do NOT log token content
+        logger.debug("JWT verification failed: invalid or expired token")
         return None
-    except Exception as e:
-        print(f"DEBUG verify_token: Unexpected error: {type(e).__name__}: {str(e)}")
+    except Exception:
+        logger.warning("Unexpected error during token verification", exc_info=True)
         return None
