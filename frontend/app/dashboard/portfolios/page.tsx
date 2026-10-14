@@ -5,6 +5,22 @@ import Link from 'next/link';
 import { portfoliosApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Plus,
   FolderKanban,
@@ -14,10 +30,13 @@ import {
   LayoutGrid,
   Search,
   MoreVertical,
-  History
+  History,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { LoadingScreen } from '@/components/loading-screen';
 import { formatINR } from '@/lib/currency';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Portfolio {
   id: number;
@@ -27,9 +46,18 @@ interface Portfolio {
 }
 
 export default function PortfoliosPage() {
+  const { toast } = useToast();
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Edit Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingPortfolio, setEditingPortfolio] = useState<Portfolio | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editBalance, setEditBalance] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchPortfolios();
@@ -46,7 +74,77 @@ export default function PortfoliosPage() {
     }
   };
 
-  const filteredPortfolios = portfolios.filter(p =>
+  const openEditModal = (portfolio: Portfolio) => {
+    setEditingPortfolio(portfolio);
+    setEditName(portfolio.name);
+    setEditDescription(portfolio.description || '');
+    setEditBalance(String(portfolio.initial_balance));
+    setEditModalOpen(true);
+  };
+
+  const handleUpdatePortfolio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPortfolio) return;
+
+    const balance = parseFloat(editBalance);
+    if (isNaN(balance) || balance < 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Amount',
+        description: 'Please enter a valid initial capital amount.',
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await portfoliosApi.update(editingPortfolio.id, {
+        name: editName.trim(),
+        description: editDescription.trim() || null,
+        initial_balance: balance,
+      });
+      toast({
+        title: '✅ Vault Updated',
+        description: `"${editName.trim()}" updated successfully.`,
+      });
+      setEditModalOpen(false);
+      fetchPortfolios();
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: typeof detail === 'string' ? detail : 'Could not update portfolio vault.',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeletePortfolio = async (portfolio: Portfolio) => {
+    const confirmed = confirm(
+      `Are you sure you want to delete "${portfolio.name}"?\n\nAll associated trades, daily charges, and ledger transactions will be permanently deleted.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await portfoliosApi.delete(portfolio.id);
+      toast({
+        title: '🗑️ Vault Deleted',
+        description: `"${portfolio.name}" has been removed.`,
+      });
+      fetchPortfolios();
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      toast({
+        variant: 'destructive',
+        title: 'Delete Failed',
+        description: typeof detail === 'string' ? detail : 'Could not delete portfolio vault.',
+      });
+    }
+  };
+
+  const filteredPortfolios = portfolios.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -66,9 +164,13 @@ export default function PortfoliosPage() {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">Management Console</span>
+              <span className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">
+                Management Console
+              </span>
             </div>
-            <h1 className="text-5xl font-black tracking-tighter">Your <span className="text-primary italic">Vaults</span></h1>
+            <h1 className="text-5xl font-black tracking-tighter">
+              Your <span className="text-primary italic">Vaults</span>
+            </h1>
             <p className="text-muted-foreground font-medium max-w-md">
               You have <span className="text-foreground font-bold">{portfolios.length} active portfolios</span> under management across all trading segments.
             </p>
@@ -128,39 +230,96 @@ export default function PortfoliosPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredPortfolios.map((portfolio) => (
-            <Link key={portfolio.id} href={`/dashboard/portfolios/${portfolio.id}`} className="group relative">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-3xl blur opacity-0 group-hover:opacity-100 transition duration-500"></div>
+            <div key={portfolio.id} className="group relative">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-3xl blur opacity-0 group-hover:opacity-100 transition duration-500 pointer-events-none" />
               <Card className="relative border-2 border-transparent bg-card group-hover:border-primary/20 transition-all duration-300 rounded-[2rem] overflow-hidden group-hover:-translate-y-2 group-hover:shadow-2xl h-full flex flex-col">
-                <CardHeader className="p-8">
+                <CardHeader className="p-8 pb-4">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-14 w-14 rounded-2xl bg-primary/5 flex items-center justify-center group-hover:bg-primary transition-colors duration-500">
+                    <Link
+                      href={`/dashboard/portfolios/${portfolio.id}`}
+                      className="h-14 w-14 rounded-2xl bg-primary/5 flex items-center justify-center group-hover:bg-primary transition-colors duration-500 cursor-pointer"
+                    >
                       <BarChart3 className="h-7 w-7 text-primary group-hover:text-white transition-colors" />
-                    </div>
-                    <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
+                    </Link>
+
+                    {/* Three Dots Menu with Vaults, Update, Delete */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-full h-9 w-9 hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+                          aria-label="Vault Options"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52 p-1.5 rounded-2xl shadow-2xl border">
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={`/dashboard/portfolios/${portfolio.id}`}
+                            className="flex items-center gap-2.5 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer"
+                          >
+                            <FolderKanban className="h-4 w-4 text-primary" />
+                            <span>Open Overview</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={`/dashboard/portfolios/${portfolio.id}?tab=vault`}
+                            className="flex items-center gap-2.5 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer"
+                          >
+                            <Wallet className="h-4 w-4 text-emerald-500" />
+                            <span>View Ledger Book</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="my-1" />
+                        <DropdownMenuItem
+                          onClick={() => openEditModal(portfolio)}
+                          className="flex items-center gap-2.5 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer text-foreground hover:text-primary"
+                        >
+                          <Pencil className="h-4 w-4 text-blue-500" />
+                          <span>Update Vault</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeletePortfolio(portfolio)}
+                          className="flex items-center gap-2.5 font-bold text-xs py-2.5 px-3 rounded-xl cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10 hover:bg-red-500/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Delete Vault</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <CardTitle className="text-2xl font-black tracking-tight mb-2 group-hover:text-primary transition-colors">{portfolio.name}</CardTitle>
-                  <CardDescription className="line-clamp-2 min-h-[40px] font-medium leading-relaxed">
-                    {portfolio.description || 'Global trading portfolio with active risk management settings.'}
-                  </CardDescription>
+
+                  <Link href={`/dashboard/portfolios/${portfolio.id}`} className="block group-hover:text-primary transition-colors">
+                    <CardTitle className="text-2xl font-black tracking-tight mb-2 group-hover:text-primary transition-colors">
+                      {portfolio.name}
+                    </CardTitle>
+                    <CardDescription className="line-clamp-2 min-h-[40px] font-medium leading-relaxed">
+                      {portfolio.description || 'Global trading portfolio with active risk management settings.'}
+                    </CardDescription>
+                  </Link>
                 </CardHeader>
-                <CardContent className="px-8 pb-8 mt-auto">
-                  <div className="p-5 rounded-2xl bg-muted/40 border border-muted flex flex-col gap-3 group-hover:bg-primary/5 group-hover:border-primary/10 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Initial Equity</span>
-                      <span className="text-lg font-black text-foreground">{formatINR(portfolio.initial_balance)}</span>
+
+                <Link href={`/dashboard/portfolios/${portfolio.id}`} className="px-8 pb-8 mt-auto block cursor-pointer">
+                  <CardContent className="p-0">
+                    <div className="p-5 rounded-2xl bg-muted/40 border border-muted flex flex-col gap-3 group-hover:bg-primary/5 group-hover:border-primary/10 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Initial Equity</span>
+                        <span className="text-lg font-black text-foreground">{formatINR(portfolio.initial_balance)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="flex items-center text-[10px] font-black text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">
+                          <ArrowUpRight className="h-3 w-3 mr-0.5" /> READY
+                        </span>
+                        <span className="text-[10px] font-bold text-muted-foreground opacity-50">MANAGE</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="flex items-center text-[10px] font-black text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">
-                        <ArrowUpRight className="h-3 w-3 mr-0.5" /> READY
-                      </span>
-                      <span className="text-[10px] font-bold text-muted-foreground opacity-50">SYNCED 2M AGO</span>
-                    </div>
-                  </div>
-                </CardContent>
+                  </CardContent>
+                </Link>
               </Card>
-            </Link>
+            </div>
           ))}
 
           {/* Quick Add Card */}
@@ -175,6 +334,82 @@ export default function PortfoliosPage() {
           </Link>
         </div>
       )}
+
+      {/* ─── UPDATE VAULT (EDIT MODAL) ────────────────────────── */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="max-w-md rounded-[2.5rem] p-8 border shadow-2xl">
+          <DialogHeader className="space-y-2">
+            <DialogTitle className="text-2xl font-black tracking-tight">
+              Update <span className="text-primary italic">Vault</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Edit portfolio parameters and capital settings
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdatePortfolio} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Vault Name
+              </Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="e.g. F&O Intraday, Options Positional..."
+                required
+                className="h-12 rounded-xl font-bold"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Initial Equity / Capital (₹)
+              </Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={editBalance}
+                onChange={(e) => setEditBalance(e.target.value)}
+                placeholder="0.00"
+                required
+                className="h-12 rounded-xl font-bold"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Description (Optional)
+              </Label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Trading rules, strategy notes, segment details..."
+                rows={3}
+                className="w-full rounded-xl border bg-background p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setEditModalOpen(false)}
+                className="flex-1 h-12 rounded-xl font-bold"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving}
+                className="flex-1 h-12 rounded-xl font-black text-white shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90"
+              >
+                {saving ? 'Saving...' : 'Update Vault'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
