@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, isLoading } = useAuthStore();
+  const { user, isInitialized, checkAuth, register, isLoading } = useAuthStore();
   const [formData, setFormData] = useState({
     email: '',
     username: '',
@@ -22,6 +22,20 @@ export default function RegisterPage() {
     full_name: '',
   });
   const [error, setError] = useState('');
+
+  // Check if session is already active on mount
+  useEffect(() => {
+    if (!isInitialized) {
+      checkAuth();
+    }
+  }, [isInitialized, checkAuth]);
+
+  // If already authenticated, redirect to /dashboard immediately
+  useEffect(() => {
+    if (isInitialized && user) {
+      router.replace('/dashboard');
+    }
+  }, [isInitialized, user, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
